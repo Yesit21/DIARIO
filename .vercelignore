@@ -1,0 +1,15 @@
+node_modules
+*.log
+.env
+.env.local
+.env.production.local
+.env.development.local
+server.js
+diary.db
+cloudflared.exe
+ngrok.exe
+ngrok.zip
+.git
+.gitignore
+README.md
+INSTRUCCIONES_VERCEL.md
