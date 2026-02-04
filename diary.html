@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuestros Recuerdos de Amor - Entradas</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="diary-page">
+    <header>
+        <h1>💕 Nuestros Recuerdos de Amor 💕</h1>
+        <div class="header-controls">
+            <div class="header-buttons">
+                <button id="newEntryBtn" class="btn-primary">Nueva Entrada</button>
+                <button onclick="syncToDatabase()" class="btn-secondary" style="background: #4caf50;">🔄 Sincronizar Todo</button>
+                <button onclick="shareDiaryLink()" class="btn-secondary" style="background: #2196F3;">🔗 Compartir Enlace</button>
+                <button onclick="clearAllEntries()" class="btn-secondary" style="background: #f44336;">🗑️ Borrar Todo</button>
+            </div>
+            <div id="syncStatus">
+                <span id="syncIndicator">🔄 Conectando...</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="diary-content">
+        <div id="entryForm" class="entry-form hidden">
+            <h2>Nueva Entrada</h2>
+            <input type="text" id="entryTitle" placeholder="Título de la entrada" required>
+            <textarea id="entryText" placeholder="Escribe aquí tus pensamientos..." required></textarea>
+            <input type="file" id="entryPhoto" accept="image/*" multiple>
+            
+            <div class="form-buttons">
+                <button id="saveEntry" class="btn-primary">Guardar</button>
+                <button id="cancelEntry" class="btn-secondary">Cancelar</button>
+            </div>
+        </div>
+
+        <div id="entriesContainer" class="entries-container">
+            <!-- Las entradas se mostrarán aquí -->
+        </div>
+    </main>
+
+    <script src="diary.js"></script>
+</body>
+</html>

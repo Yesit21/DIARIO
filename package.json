@@ -1,0 +1,31 @@
+{
+  "name": "diario-romantico",
+  "version": "1.0.0",
+  "description": "Diario romántico con sincronización en MongoDB Atlas",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "mongodb": "^6.3.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": [
+    "diario",
+    "romantico",
+    "mongodb",
+    "love",
+    "memories"
+  ],
+  "author": "Tu nombre",
+  "license": "MIT"
+}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuestros Recuerdos de Amor</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="heart-container">
+            <div class="heart" id="heart">
+                <div class="lock" id="lock">
+                    <div class="lock-body"></div>
+                    <div class="lock-shackle"></div>
+                    <div class="keyhole"></div>
+                </div>
+            </div>
+            <div class="entrance-text">
+                <h1>Nuestros Recuerdos Secretos</h1>
+                <p>Haz clic en el corazón para entrar</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de contraseña -->
+    <div id="passwordModal" class="password-modal hidden">
+        <div class="password-container">
+            <h2>🔐 Ingresa la contraseña</h2>
+            <p>Introduce los números para acceder a nuestro diario</p>
+            <div class="password-inputs">
+                <input type="number" class="password-digit" maxlength="1" min="0" max="9">
+                <input type="number" class="password-digit" maxlength="1" min="0" max="9">
+                <input type="number" class="password-digit" maxlength="1" min="0" max="9">
+                <input type="number" class="password-digit" maxlength="1" min="0" max="9">
+                <input type="number" class="password-digit" maxlength="1" min="0" max="9">
+                <input type="number" class="password-digit" maxlength="1" min="0" max="9">
+                <input type="number" class="password-digit" maxlength="1" min="0" max="9">
+                <input type="number" class="password-digit" maxlength="1" min="0" max="9">
+            </div>
+            <div class="password-buttons">
+                <button id="submitPassword" class="btn-primary">Entrar</button>
+                <button id="cancelPassword" class="btn-secondary">Cancelar</button>
+            </div>
+            <div id="passwordError" class="password-error hidden">
+                ❌ Contraseña incorrecta. Inténtalo de nuevo.
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
