@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "Diario romántico con funciones serverless",
   "main": "index.html",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "build": "echo 'Build completed'",
+    "start": "echo 'Static site ready'"
   },
   "dependencies": {},
   "engines": {
