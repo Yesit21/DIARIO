@@ -1,31 +1,24 @@
-// Configuración de MongoDB Atlas
-const MONGODB_CONFIG = {
-    connectionString: 'mongodb+srv://YesitAndrade:2210jared@cluster0.mongodb.net/DiarioRomantico?retryWrites=true&w=majority',
-    databaseName: 'DiarioRomantico',
-    collectionName: 'entradas'
-};
-
-// API endpoints para MongoDB (usando MongoDB Data API)
-const MONGODB_API = {
-    baseUrl: 'https://data.mongodb-api.com/app/data-xxxxx/endpoint/data/v1',
-    apiKey: 'tu-api-key-aqui', // Necesitarás configurar esto en MongoDB Atlas
-    dataSource: 'Cluster0',
-    database: 'DiarioRomantico',
-    collection: 'entradas'
+// Configuración del servidor local
+const SERVER_API = {
+    baseUrl: window.location.origin,
+    syncUrl: '/api/sync-local-entries',
+    entriesUrl: '/api/entries'
 };
 
 // Estado de sincronización
 let isOnline = navigator.onLine;
 let isSyncing = false;
 
-// Funcionalidad del diario con MongoDB
+// Funcionalidad del diario
 document.addEventListener('DOMContentLoaded', function() {
     const newEntryBtn = document.getElementById('newEntryBtn');
     const entryForm = document.getElementById('entryForm');
     const saveEntryBtn = document.getElementById('saveEntry');
     const cancelEntryBtn = document.getElementById('cancelEntry');
     const entriesContainer = document.getElementById('entriesContainer');
-    const syncStatus = document.getElementById('syncIndicator');
+    
+    // Estado de la sección activa
+    let currentSection = 'recuerdos'; // 'recuerdos' o 'anhelos'
     
     // Variables para paginación
     let currentPage = 1;
@@ -51,21 +44,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return accessUrl;
     }
     
-    // Función para compartir enlace del diario
-    window.shareDiaryLink = function() {
-        const accessLink = generateAccessLink();
-        
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(accessLink).then(() => {
-                alert(`🔗 ¡Enlace del diario copiado!\n\n📱 Comparte este enlace:\n\n${accessLink}\n\n💕 Funciona desde cualquier dispositivo con internet.\n🔐 Al abrir el enlace, verán la página con el corazón y deberán ingresar la contraseña (20072210).\n\n🌐 Este enlace es público pero seguro con contraseña.`);
-            }).catch(() => {
-                prompt('🔗 Copia este enlace para compartir:', accessLink);
-            });
-        } else {
-            prompt('🔗 Copia este enlace para compartir:', accessLink);
-        }
-    };
-    
     // Verificar acceso por URL
     function checkUrlAccess() {
         // Verificar si ya se autenticó en esta sesión
@@ -80,175 +58,72 @@ document.addEventListener('DOMContentLoaded', function() {
         return false;
     }
     
-    // Función para actualizar estado de sincronización
-    function updateSyncStatus(status, message = '') {
-        if (syncStatus) {
-            switch (status) {
-                case 'online':
-                    syncStatus.innerHTML = '✅ Sincronizado';
-                    syncStatus.style.color = '#4caf50';
-                    break;
-                case 'syncing':
-                    syncStatus.innerHTML = '🔄 Sincronizando...';
-                    syncStatus.style.color = '#ff9800';
-                    break;
-                case 'offline':
-                    syncStatus.innerHTML = '📱 Sin conexión';
-                    syncStatus.style.color = '#f44336';
-                    break;
-                case 'error':
-                    syncStatus.innerHTML = '⚠️ Error de sync';
-                    syncStatus.style.color = '#f44336';
-                    break;
-                case 'ready':
-                    syncStatus.innerHTML = '✅ Listo';
-                    syncStatus.style.color = '#4caf50';
-                    break;
-            }
-        }
-    }
-    
     // Detectar cambios de conexión
     window.addEventListener('online', () => {
         isOnline = true;
-        updateSyncStatus('syncing');
-        syncWithMongoDB();
+        console.log('🌐 Conexión recuperada, iniciando sincronización...');
+        syncWithServer();
+        syncLocalEntriesToDatabase(); // Asegurar que lo local se suba a la nube
     });
     
     window.addEventListener('offline', () => {
         isOnline = false;
-        updateSyncStatus('offline');
     });
     
-    // Función para guardar entrada en MongoDB
-    async function saveEntryToMongoDB(entry) {
-        if (!isOnline) {
-            console.log('Sin conexión, guardando solo localmente');
-            return false;
-        }
+    // Función para guardar entrada en el servidor
+    async function saveEntryToServer(entry) {
+        if (!isOnline) return false;
         
         try {
-            updateSyncStatus('syncing');
-            
-            // Usar fetch para enviar datos a MongoDB (simulado)
-            // En producción necesitarías un backend o usar MongoDB Realm
             const response = await fetch('/api/entries', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    diaryId: DIARY_ID,
-                    entry: entry
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ entry: entry })
             });
-            
-            if (response.ok) {
-                console.log('✅ Entrada guardada en MongoDB');
-                updateSyncStatus('online');
-                return true;
-            } else {
-                throw new Error('Error en la respuesta del servidor');
-            }
-            
+            return response.ok;
         } catch (error) {
-            console.error('❌ Error guardando en MongoDB:', error);
-            updateSyncStatus('error');
+            console.error('❌ Error guardando en servidor:', error);
             return false;
         }
     }
     
-    // Función para cargar entradas desde MongoDB
-    async function loadEntriesFromMongoDB() {
-        if (!isOnline) {
-            console.log('Sin conexión, cargando solo desde localStorage');
-            return JSON.parse(localStorage.getItem('diaryEntries')) || [];
-        }
+    // Función para cargar entradas desde el servidor
+    async function loadEntriesFromServer() {
+        if (!isOnline) return JSON.parse(localStorage.getItem('diaryEntries')) || [];
         
         try {
-            updateSyncStatus('syncing');
-            
-            // Usar fetch para obtener datos de MongoDB (simulado)
-            const response = await fetch(`/api/entries?diaryId=${DIARY_ID}`);
-            
+            const response = await fetch('/api/entries');
             if (response.ok) {
                 const data = await response.json();
-                const cloudEntries = data.entries || [];
+                const serverEntries = data.entries || [];
                 
-                // Combinar con entradas locales
+                // Mezclar con locales y evitar duplicados
                 const localEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-                const allEntries = [...localEntries, ...cloudEntries];
-                
-                // Eliminar duplicados por ID
+                const allEntries = [...localEntries, ...serverEntries];
                 const uniqueEntries = allEntries.filter((entry, index, self) => 
                     index === self.findIndex(e => e.id === entry.id)
                 );
                 
-                // Ordenar por fecha
-                uniqueEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-                
-                // Actualizar localStorage
                 localStorage.setItem('diaryEntries', JSON.stringify(uniqueEntries));
-                
-                console.log(`✅ Cargadas ${uniqueEntries.length} entradas desde MongoDB`);
-                updateSyncStatus('online');
                 return uniqueEntries;
-                
-            } else {
-                throw new Error('Error cargando desde MongoDB');
             }
-            
         } catch (error) {
-            console.error('❌ Error cargando desde MongoDB:', error);
-            updateSyncStatus('error');
-            
-            // Usar solo entradas locales como fallback
-            return JSON.parse(localStorage.getItem('diaryEntries')) || [];
+            console.error('❌ Error cargando desde servidor:', error);
         }
+        return JSON.parse(localStorage.getItem('diaryEntries')) || [];
     }
     
-    // Función para verificar uso de almacenamiento en MongoDB
-    async function checkMongoDBStorage() {
-        try {
-            const response = await fetch('/api/storage-info');
-            if (response.ok) {
-                const data = await response.json();
-                console.log(`💾 Uso de MongoDB: ${data.usedMB}MB / ${data.limitMB}MB (${data.percentage}%)`);
-                
-                if (data.percentage > 80) {
-                    alert(`⚠️ Almacenamiento casi lleno: ${data.percentage}% usado\n\nConsidera eliminar entradas antiguas o usar menos fotos por entrada.`);
-                }
-                
-                return data;
-            }
-        } catch (error) {
-            console.log('No se pudo verificar el uso de almacenamiento');
-        }
-        return null;
-    }
-    async function syncWithMongoDB() {
-        if (!isOnline || isSyncing) {
-            return;
-        }
-        
+    async function syncWithServer() {
+        if (!isOnline || isSyncing) return;
         isSyncing = true;
         
         try {
-            console.log('🔄 Iniciando sincronización con MongoDB...');
-            
-            // Cargar entradas desde MongoDB
-            const entries = await loadEntriesFromMongoDB();
-            
-            // Actualizar la vista
-            if (entries.length > 0) {
-                displayEntriesWithPagination(entries);
-            }
-            
+            console.log('🔄 Sincronizando con el servidor...');
+            await loadEntriesFromServer();
+            loadEntries();
             console.log('✅ Sincronización completada');
-            
         } catch (error) {
             console.error('❌ Error en sincronización:', error);
-            updateSyncStatus('error');
         } finally {
             isSyncing = false;
         }
@@ -265,7 +140,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             console.log(`🔄 Sincronizando ${localEntries.length} entradas locales a la base de datos...`);
-            updateSyncStatus('syncing');
             
             const response = await fetch('/api/sync-local-entries', {
                 method: 'POST',
@@ -279,45 +153,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
                 console.log(`✅ Sincronización exitosa: ${result.syncedCount} entradas`);
                 
-                // Mostrar mensaje de éxito
-                const successMsg = document.createElement('div');
-                successMsg.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: #4caf50;
-                    color: white;
-                    padding: 15px 20px;
-                    border-radius: 10px;
-                    z-index: 1000;
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-                `;
-                successMsg.textContent = `🎉 ${result.syncedCount} entradas sincronizadas a la base de datos`;
-                document.body.appendChild(successMsg);
-                
-                setTimeout(() => {
-                    if (document.body.contains(successMsg)) {
-                        document.body.removeChild(successMsg);
-                    }
-                }, 5000);
-                
-                updateSyncStatus('online');
             } else {
                 throw new Error('Error en la respuesta del servidor');
             }
             
         } catch (error) {
             console.error('❌ Error sincronizando entradas locales:', error);
-            updateSyncStatus('error');
         }
     }
-    
-    // Función global para sincronizar manualmente
-    window.syncToDatabase = function() {
-        if (confirm('¿Quieres sincronizar todas las entradas locales a la base de datos?\n\nEsto asegurará que aparezcan en otros dispositivos.')) {
-            syncLocalEntriesToDatabase();
-        }
-    };
     
     // Verificar acceso y inicializar
     if (!checkUrlAccess()) {
@@ -325,27 +168,65 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // Inicializar sincronización con MongoDB
-    updateSyncStatus('ready');
-    
     // Cargar entradas desde localStorage inmediatamente
     loadEntries();
     
-    // Intentar sincronizar con MongoDB en segundo plano
+    // Intentar sincronizar con el servidor en segundo plano
     if (isOnline) {
-        syncWithMongoDB().then(() => {
-            updateSyncStatus('online');
+        syncWithServer().then(() => {
         }).catch(() => {
-            updateSyncStatus('ready');
         });
-    } else {
-        updateSyncStatus('offline');
     }
     
+    // Manejar cambio de secciones
+    const showRecuerdosBtn = document.getElementById('showRecuerdos');
+    const showAnhelosBtn = document.getElementById('showAnhelos');
+    const headerTitle = document.querySelector('header h1');
+    const formTitle = document.querySelector('#entryForm h2');
+    const anhelosFields = document.getElementById('anhelosFields');
+    const entryTextarea = document.getElementById('entryText');
+
+    function updateSectionUI() {
+        if (currentSection === 'recuerdos') {
+            document.body.classList.remove('anhelos-theme');
+            showRecuerdosBtn.classList.add('active');
+            showAnhelosBtn.classList.remove('active');
+            headerTitle.innerHTML = '💕 Nuestros Recuerdos de Amor 💕';
+            formTitle.innerHTML = 'Nuevo Recuerdo';
+            anhelosFields.classList.add('hidden');
+            entryTextarea.placeholder = 'Escribe aquí tus pensamientos...';
+        } else {
+            document.body.classList.add('anhelos-theme');
+            showRecuerdosBtn.classList.remove('active');
+            showAnhelosBtn.classList.add('active');
+            headerTitle.innerHTML = 'Mis Deseos';
+            formTitle.innerHTML = 'Nuevo Deseo';
+            anhelosFields.classList.remove('hidden');
+            entryTextarea.placeholder = 'Descripción o detalles (opcional)';
+        }
+        currentPage = 1; // Resetear página al cambiar sección
+        loadEntries();
+    }
+
+    showRecuerdosBtn.addEventListener('click', () => {
+        if (currentSection !== 'recuerdos') {
+            currentSection = 'recuerdos';
+            updateSectionUI();
+        }
+    });
+
+    showAnhelosBtn.addEventListener('click', () => {
+        if (currentSection !== 'anhelos') {
+            currentSection = 'anhelos';
+            updateSectionUI();
+        }
+    });
+
     // Sincronizar cada 30 segundos si hay conexión
     setInterval(() => {
         if (isOnline && !isSyncing) {
-            syncWithMongoDB();
+            syncWithServer();
+            syncLocalEntriesToDatabase();
         }
     }, 30000);
     
@@ -500,8 +381,14 @@ document.addEventListener('DOMContentLoaded', function() {
         const text = document.getElementById('entryText').value;
         const photoFiles = document.getElementById('entryPhoto').files;
         
-        if (!title || !text) {
-            alert('Por favor completa todos los campos obligatorios');
+        // Campos específicos de Anhelos
+        const price = document.getElementById('entryPrice').value;
+        const status = document.getElementById('entryStatus').value;
+        
+        // Validación: El título siempre es obligatorio. 
+        // El texto es obligatorio solo en Recuerdos, en Anhelos es opcional.
+        if (!title || (currentSection === 'recuerdos' && !text)) {
+            alert(currentSection === 'recuerdos' ? 'Por favor completa el título y tus pensamientos' : 'Por favor ingresa un nombre para tu anhelo');
             return;
         }
         
@@ -519,7 +406,10 @@ document.addEventListener('DOMContentLoaded', function() {
             id: Date.now(),
             title: title,
             text: text,
-            photos: []
+            photos: [],
+            type: currentSection, // Guardar si es recuerdo o anhelo
+            price: currentSection === 'anhelos' ? price : null,
+            status: currentSection === 'anhelos' ? status : null
         };
         
         if (photoFiles.length > 0) {
@@ -531,8 +421,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function saveEntry(entry) {
-        // Intentar guardar en MongoDB primero
-        saveEntryToMongoDB(entry).then(success => {
+        // Intentar guardar en servidor primero
+        saveEntryToServer(entry).then(success => {
             // Siempre guardar localmente como respaldo
             try {
                 let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
@@ -552,33 +442,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 entryForm.classList.add('hidden');
                 clearForm();
                 newEntryBtn.style.display = 'inline-block';
-                
-                const successMsg = document.createElement('div');
-                successMsg.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: #4caf50;
-                    color: white;
-                    padding: 15px 20px;
-                    border-radius: 10px;
-                    z-index: 1000;
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-                `;
-                
-                if (success) {
-                    successMsg.textContent = '✅ Entrada guardada y sincronizada en la nube';
-                } else {
-                    successMsg.textContent = '✅ Entrada guardada (se sincronizará cuando haya conexión)';
-                }
-                
-                document.body.appendChild(successMsg);
-                
-                setTimeout(() => {
-                    if (document.body.contains(successMsg)) {
-                        document.body.removeChild(successMsg);
-                    }
-                }, 3000);
                 
             } catch (error) {
                 console.error('Error guardando localmente:', error);
@@ -607,18 +470,29 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function loadEntries() {
         // Cargar desde localStorage primero
-        const entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
+        let allEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
         
-        console.log(`📋 Cargando ${entries.length} entradas desde localStorage`);
-        console.log('📝 Entradas encontradas:', entries);
+        // Filtrar por la sección actual
+        // Si no tiene 'type', asumimos que es 'recuerdos' (para entradas antiguas)
+        const entries = allEntries.filter(e => {
+            if (currentSection === 'recuerdos') {
+                return !e.type || e.type === 'recuerdos';
+            }
+            return e.type === 'anhelos';
+        });
+        
+        console.log(`📋 Cargando ${entries.length} entradas de tipo ${currentSection}`);
         
         if (entries.length === 0) {
-            console.log('❌ No hay entradas, mostrando mensaje de bienvenida');
+            const emptyMsg = currentSection === 'recuerdos' 
+                ? 'Aún no tienen recuerdos. Haz clic en "Nueva Entrada" para comenzar a escribir juntos.'
+                : 'Aún no tienen anhelos. ¿Qué sueños les gustaría cumplir juntos?';
+            
             entriesContainer.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #ad1457;">
-                    <h3>¡Bienvenidos a nuestros recuerdos!</h3>
-                    <p>Aún no tienen entradas. Haz clic en "Nueva Entrada" para comenzar a escribir juntos.</p>
-                    <p style="font-size: 0.9em; margin-top: 15px;">💕 Sus recuerdos se guardan automáticamente</p>
+                    <h3>¡Bienvenidos a nuestros ${currentSection}!</h3>
+                    <p>${emptyMsg}</p>
+                    <p style="font-size: 0.9em; margin-top: 15px;">💕 Sus ${currentSection} se guardan automáticamente</p>
                 </div>
             `;
             return;
@@ -627,9 +501,9 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Mostrando entradas con paginación...');
         displayEntriesWithPagination(entries);
         
-        // Intentar sincronizar con MongoDB en segundo plano
+        // Intentar sincronizar con el servidor en segundo plano
         if (isOnline) {
-            syncWithMongoDB();
+            syncWithServer();
         }
     }
     
@@ -665,21 +539,30 @@ document.addEventListener('DOMContentLoaded', function() {
         pageContainer.id = `page-${pageNum}`;
         pageContainer.style.display = isVisible ? 'block' : 'none';
         
-        const pageTitles = [
+        const pageTitles = currentSection === 'recuerdos' ? [
             { title: '💖 Nuestros Primeros Momentos 💖', subtitle: 'Donde comenzó nuestra historia de amor' },
             { title: '💕 Recuerdos Dulces 💕', subtitle: 'Momentos que nos hacen sonreír' },
             { title: '💗 Aventuras Juntos 💗', subtitle: 'Explorando el mundo de la mano' },
             { title: '💝 Tesoros del Corazón 💝', subtitle: 'Memorias que guardamos con amor' },
             { title: '💘 Días Especiales 💘', subtitle: 'Celebrando nuestro amor único' },
             { title: '💞 Eternos Momentos 💞', subtitle: 'Para siempre en nuestros corazones' }
+        ] : [
+            { title: '✨ Mis Deseos ✨', subtitle: '' },
+            { title: '🌟 Anhelos del Corazón 🌟', subtitle: '' },
+            { title: '💫 Futuro Juntos 💫', subtitle: '' },
+            { title: '🌈 Deseos Compartidos 🌈', subtitle: '' },
+            { title: '🔮 Promesas de Amor 🔮', subtitle: '' },
+            { title: '🌌 Infinitos Anhelos 🌌', subtitle: '' }
         ];
         
         const pageTitle = pageTitles[((pageNum - 1) % 6)];
         
+        const subtitleHtml = pageTitle.subtitle ? `<p class="page-subtitle">${pageTitle.subtitle}</p>` : '';
+        
         pageContainer.innerHTML = `
             <div class="page-header">
                 <h2 class="page-title">${pageTitle.title}</h2>
-                <p class="page-subtitle">${pageTitle.subtitle}</p>
+                ${subtitleHtml}
             </div>
             <div class="entries-grid" id="grid-${pageNum}"></div>
         `;
@@ -696,9 +579,10 @@ document.addEventListener('DOMContentLoaded', function() {
         for (let i = entries.length; i < 10; i++) {
             const emptySlot = document.createElement('div');
             emptySlot.className = 'diary-entry empty-slot';
+            const emptySlotText = currentSection === 'recuerdos' ? '💭 Esperando nuevos recuerdos...' : '✨ Esperando nuevos anhelos...';
             emptySlot.innerHTML = `
                 <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ccc; font-style: italic;">
-                    <span>💭 Esperando nuevos recuerdos...</span>
+                    <span>${emptySlotText}</span>
                 </div>
             `;
             grid.appendChild(emptySlot);
@@ -712,15 +596,10 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`📸 Fotos en la entrada:`, entry.photos ? entry.photos.length : 0);
         
         const entryElement = document.createElement('div');
-        entryElement.className = 'diary-entry';
+        entryElement.className = `diary-entry ${entry.type === 'anhelos' ? 'anhelo-item' : ''}`;
         
         let photosHtml = '';
         if (entry.photos && entry.photos.length > 0) {
-            console.log(`📸 Mostrando entrada "${entry.title}" con ${entry.photos.length} fotos en orden:`);
-            entry.photos.forEach((photo, index) => {
-                console.log(`  ${index + 1}. Foto mostrada en posición ${index + 1} (${photo.length} caracteres)`);
-            });
-            
             photosHtml = `
                 <div class="entry-photos">
                     ${entry.photos.slice(0, 4).map((photo, index) => `
@@ -731,16 +610,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     ${entry.photos.length > 4 ? `<div style="font-size: 0.8em; color: #ad1457; text-align: center;">+${entry.photos.length - 4} más fotos</div>` : ''}
                 </div>
             `;
-        } else {
-            console.log(`❌ No hay fotos en la entrada "${entry.title}"`);
         }
+        
+        // Contenido específico para Anhelos (Tienda)
+        let anhelosInfoHtml = '';
+        if (entry.type === 'anhelos') {
+            const statusLabel = entry.status === 'adquirido' ? '✅ Adquirido' : '⏳ Sin adquirir';
+            const statusClass = entry.status === 'adquirido' ? 'status-acquired' : 'status-pending';
+            const priceHtml = entry.price ? `<div class="entry-price">💰 Precio: $${entry.price}</div>` : '';
+            
+            anhelosInfoHtml = `
+                <div class="anhelo-details">
+                    ${priceHtml}
+                    <div class="entry-status ${statusClass}" onclick="toggleAnheloStatus(${entry.id})">
+                        ${statusLabel}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Preparar el texto (opcional en Anhelos)
+        const textHtml = entry.text ? `<p class="entry-text">${entry.text.replace(/\n/g, '<br>')}</p>` : '';
         
         entryElement.innerHTML = `
             <div class="entry-header">
                 <button onclick="deleteEntry(${entry.id})" class="delete-btn">×</button>
             </div>
             <h3 class="entry-title">${entry.title}</h3>
-            <p class="entry-text">${entry.text.replace(/\n/g, '<br>')}</p>
+            ${anhelosInfoHtml}
+            ${textHtml}
             ${photosHtml}
         `;
         
@@ -800,14 +698,14 @@ document.addEventListener('DOMContentLoaded', function() {
             newPageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         
-        const entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-        displayEntriesWithPagination(entries);
+        loadEntries(); // Usar loadEntries para que aplique el filtro de sección
     }
     
     // Función global para eliminar entradas
     // Función global para eliminar entradas
     window.deleteEntry = function(entryId) {
-        if (confirm('¿Estás segura de que quieres eliminar esta entrada?')) {
+        const itemType = currentSection === 'recuerdos' ? 'recuerdo' : 'anhelo';
+        if (confirm(`¿Estás segura de que quieres eliminar este ${itemType}?`)) {
             let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
             entries = entries.filter(entry => entry.id !== entryId);
             localStorage.setItem('diaryEntries', JSON.stringify(entries));
@@ -815,15 +713,21 @@ document.addEventListener('DOMContentLoaded', function() {
             loadEntries();
         }
     };
-    
-    // Función global para borrar todas las entradas
-    window.clearAllEntries = function() {
-        if (confirm('⚠️ ¿Estás seguro de que quieres borrar TODAS las entradas? Esta acción no se puede deshacer.')) {
-            if (confirm('🚨 ÚLTIMA CONFIRMACIÓN: Se borrarán todas las entradas y fotos del diario.')) {
-                localStorage.removeItem('diaryEntries');
-                loadEntries();
-                alert('🗑️ Todas las entradas han sido eliminadas.');
-            }
+
+    // Función para cambiar el estado de un anhelo
+    window.toggleAnheloStatus = function(entryId) {
+        let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
+        const index = entries.findIndex(e => e.id === entryId);
+        
+        if (index !== -1) {
+            const currentStatus = entries[index].status;
+            entries[index].status = currentStatus === 'adquirido' ? 'sin_adquirir' : 'adquirido';
+            localStorage.setItem('diaryEntries', JSON.stringify(entries));
+            
+            // Intentar sincronizar con la base de datos
+            saveEntryToMongoDB(entries[index]);
+            
+            loadEntries();
         }
     };
     

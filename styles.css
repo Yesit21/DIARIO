@@ -149,38 +149,144 @@ header h1 {
 .header-controls {
     display: flex;
     justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 20px;
+    margin-top: 10px;
 }
 
-.header-buttons {
+.section-switcher {
     display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
     justify-content: center;
+    gap: 15px;
+    margin-bottom: 15px;
 }
 
-#syncStatus {
-    color: #ad1457;
-    font-size: 0.9em;
-    font-weight: bold;
-    padding: 8px 15px;
-    background: rgba(173, 20, 87, 0.1);
+.section-btn {
+    background: transparent;
+    border: 2px solid #e91e63;
+    color: #e91e63;
+    padding: 8px 20px;
     border-radius: 20px;
-    border: 1px solid rgba(173, 20, 87, 0.2);
+    cursor: pointer;
+    font-family: 'Georgia', serif;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.section-btn.active {
+    background: #e91e63;
+    color: white;
+}
+
+.section-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(233, 30, 99, 0.2);
+}
+
+/* Estilo para la sección de Anhelos */
+.anhelos-theme .section-btn {
+    border-color: #9c27b0;
+    color: #9c27b0;
+}
+
+.anhelos-theme .section-btn.active {
+    background: #9c27b0;
+    color: white;
+}
+
+.anhelos-theme .btn-primary {
+    background: #9c27b0;
+}
+
+.anhelos-theme header h1 {
+    color: #7b1fa2;
+}
+
+.anhelos-theme .page-title {
+    color: #7b1fa2 !important;
+}
+
+.anhelos-theme .diary-page-container {
+    background: rgba(243, 229, 245, 0.4);
+}
+
+/* Estilos para el modo tienda de Anhelos */
+#anhelosFields {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+#anhelosFields.hidden {
+    display: none;
+}
+
+#entryPrice {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px solid #f3e5f5;
+    font-family: 'Georgia', serif;
+}
+
+#entryStatus {
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px solid #f3e5f5;
+    background: white;
+    font-family: 'Georgia', serif;
+}
+
+.anhelo-item {
+    border: 2px solid #9c27b0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.anhelo-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(156, 39, 176, 0.2);
+}
+
+.anhelo-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0;
+    padding: 8px;
+    background: rgba(156, 39, 176, 0.05);
+    border-radius: 10px;
+}
+
+.entry-price {
+    font-weight: bold;
+    color: #7b1fa2;
+    font-size: 1.1em;
+}
+
+.entry-status {
+    padding: 5px 12px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.status-acquired {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #2e7d32;
+}
+
+.status-pending {
+    background: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ef6c00;
+}
+
+.entry-status:hover {
+    transform: scale(1.05);
 }
 
 @media (max-width: 768px) {
-    .header-controls {
-        flex-direction: column;
-        gap: 15px;
-    }
-    
-    .header-buttons {
-        gap: 10px;
-    }
-    
     .btn-primary, .btn-secondary {
         padding: 10px 16px;
         font-size: 14px;
@@ -198,9 +304,7 @@ header h1 {
     transition: background 0.3s ease;
 }
 
-.btn-primary:hover {
-    background: #c2185b;
-}
+/* Estilos de botones */
 
 .btn-secondary {
     background: #9e9e9e;
