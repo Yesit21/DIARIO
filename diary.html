@@ -5,20 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nuestros Recuerdos de Amor - Entradas</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#e91e63">
 </head>
 <body class="diary-page">
     <header>
         <h1>💕 Nuestros Recuerdos de Amor 💕</h1>
+        <div class="section-switcher">
+            <button id="showRecuerdos" class="section-btn active">Recuerdos</button>
+            <button id="showAnhelos" class="section-btn">Mis Deseos</button>
+        </div>
         <div class="header-controls">
-            <div class="header-buttons">
-                <button id="newEntryBtn" class="btn-primary">Nueva Entrada</button>
-                <button onclick="syncToDatabase()" class="btn-secondary" style="background: #4caf50;">🔄 Sincronizar Todo</button>
-                <button onclick="shareDiaryLink()" class="btn-secondary" style="background: #2196F3;">🔗 Compartir Enlace</button>
-                <button onclick="clearAllEntries()" class="btn-secondary" style="background: #f44336;">🗑️ Borrar Todo</button>
-            </div>
-            <div id="syncStatus">
-                <span id="syncIndicator">🔄 Conectando...</span>
-            </div>
+            <button id="newEntryBtn" class="btn-primary">Nueva Entrada</button>
         </div>
     </header>
 
@@ -26,7 +24,14 @@
         <div id="entryForm" class="entry-form hidden">
             <h2>Nueva Entrada</h2>
             <input type="text" id="entryTitle" placeholder="Título de la entrada" required>
-            <textarea id="entryText" placeholder="Escribe aquí tus pensamientos..." required></textarea>
+            <div id="anhelosFields" class="hidden">
+                <input type="number" id="entryPrice" placeholder="Precio (opcional)" step="0.01">
+                <select id="entryStatus">
+                    <option value="sin_adquirir">Sin adquirir</option>
+                    <option value="adquirido">Adquirido</option>
+                </select>
+            </div>
+            <textarea id="entryText" placeholder="Escribe aquí tus pensamientos..."></textarea>
             <input type="file" id="entryPhoto" accept="image/*" multiple>
             
             <div class="form-buttons">
@@ -41,5 +46,14 @@
     </main>
 
     <script src="diary.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(reg => console.log('✅ Service Worker registrado'))
+                    .catch(err => console.warn('❌ Error al registrar Service Worker', err));
+            });
+        }
+    </script>
 </body>
 </html>

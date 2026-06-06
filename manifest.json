@@ -1,0 +1,23 @@
+{
+  "name": "Nuestros Recuerdos de Amor",
+  "short_name": "Diario",
+  "description": "Un lugar especial para guardar nuestros recuerdos y deseos",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#ffeef8",
+  "theme_color": "#e91e63",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/833/833472.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/833/833472.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
