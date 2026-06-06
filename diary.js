@@ -511,11 +511,6 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('✅ Mostrando entradas con paginación...');
         displayEntriesWithPagination(entries);
-        
-        // Intentar sincronizar con el servidor en segundo plano
-        if (isOnline) {
-            syncWithServer();
-        }
     }
     
     function displayEntriesWithPagination(entries) {
@@ -709,36 +704,80 @@ document.addEventListener('DOMContentLoaded', function() {
             newPageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         
-        loadEntries(); // Usar loadEntries para que aplique el filtro de sección
+        // Actualizar paginación sin recargar todo
+        updatePaginationButtons();
     }
     
-    // Función global para eliminar entradas
-    // Función global para eliminar entradas
+    function updatePaginationButtons() {
+        const totalPages = document.querySelectorAll('.diary-page-container').length;
+        const paginationContainer = document.querySelector('.pagination-container');
+        if (!paginationContainer) return;
+        
+        // Actualizar estado de botones
+        const buttons = paginationContainer.querySelectorAll('.pagination-btn');
+        buttons.forEach(btn => {
+            if (btn.textContent.includes('Anterior')) {
+                btn.disabled = currentPage === 1;
+            } else if (btn.textContent.includes('Siguiente')) {
+                btn.disabled = currentPage === totalPages;
+            } else if (!isNaN(parseInt(btn.textContent))) {
+                const pageNum = parseInt(btn.textContent);
+                btn.classList.toggle('active', pageNum === currentPage);
+            }
+        });
+        
+        // Actualizar info de página
+        const pageInfo = paginationContainer.querySelector('.pagination-info');
+        if (pageInfo) {
+            pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+        }
+    }
+    
+    // Funciones globales (definidas solo una vez)
     window.deleteEntry = function(entryId) {
-        const itemType = currentSection === 'recuerdos' ? 'recuerdo' : 'anhelo';
-        if (confirm(`¿Estás segura de que quieres eliminar este ${itemType}?`)) {
+        if (!confirm('¿Estás seguro de que quieres eliminar esta entrada? Esta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        try {
             let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-            entries = entries.filter(entry => entry.id !== entryId);
+            entries = entries.filter(e => e.id !== entryId);
             localStorage.setItem('diaryEntries', JSON.stringify(entries));
             
+            // Intentar eliminar del servidor también
+            if (isOnline) {
+                fetch('/api/entries/' + entryId, {
+                    method: 'DELETE'
+                }).catch(err => console.error('Error eliminando del servidor:', err));
+            }
+            
+            console.log(`🗑️ Entrada ${entryId} eliminada`);
             loadEntries();
+        } catch (error) {
+            console.error('Error eliminando entrada:', error);
+            alert('Error al eliminar la entrada. Por favor intenta de nuevo.');
         }
     };
 
-    // Función para cambiar el estado de un anhelo
     window.toggleAnheloStatus = function(entryId) {
-        let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-        const index = entries.findIndex(e => e.id === entryId);
-        
-        if (index !== -1) {
-            const currentStatus = entries[index].status;
-            entries[index].status = currentStatus === 'adquirido' ? 'sin_adquirir' : 'adquirido';
-            localStorage.setItem('diaryEntries', JSON.stringify(entries));
+        try {
+            let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
+            const entry = entries.find(e => e.id === entryId);
             
-            // Intentar sincronizar con la base de datos
-            saveEntryToServer(entries[index]);
-            
-            loadEntries();
+            if (entry) {
+                entry.status = entry.status === 'adquirido' ? 'sin_adquirir' : 'adquirido';
+                localStorage.setItem('diaryEntries', JSON.stringify(entries));
+                
+                // Actualizar en el servidor
+                if (isOnline) {
+                    saveEntryToServer(entry).catch(err => console.error('Error actualizando en servidor:', err));
+                }
+                
+                console.log(`✅ Estado de anhelo ${entryId} cambiado a: ${entry.status}`);
+                loadEntries();
+            }
+        } catch (error) {
+            console.error('Error cambiando estado:', error);
         }
     };
     
