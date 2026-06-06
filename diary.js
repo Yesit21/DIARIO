@@ -11,6 +11,24 @@ let isSyncing = false;
 
 // Funcionalidad del diario
 document.addEventListener('DOMContentLoaded', function() {
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    
+    // Cargar tema guardado
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.body.setAttribute('data-theme', savedTheme);
+    themeIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+    // Función para cambiar tema
+    themeToggleBtn.addEventListener('click', () => {
+        const currentTheme = document.body.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        document.body.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+    });
+
     const newEntryBtn = document.getElementById('newEntryBtn');
     const entryForm = document.getElementById('entryForm');
     const saveEntryBtn = document.getElementById('saveEntry');
@@ -23,26 +41,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Variables para paginación
     let currentPage = 1;
     const entriesPerPage = 10;
-    
-    // ID único del diario
-    let DIARY_ID = 'nuestro-diario-secreto-2024';
-    
-    // Función para obtener parámetros de la URL
-    function getUrlParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        return {
-            diaryId: urlParams.get('diary'),
-            password: urlParams.get('pass')
-        };
-    }
-    
-    // Función para generar enlace de acceso dinámico
-    function generateAccessLink() {
-        // Usar la URL actual del navegador (funciona en local y en Vercel)
-        const baseUrl = window.location.origin;
-        const accessUrl = `${baseUrl}/index.html`;
-        return accessUrl;
-    }
     
     // Verificar acceso por URL
     function checkUrlAccess() {
@@ -120,7 +118,20 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             console.log('🔄 Sincronizando con el servidor...');
             await loadEntriesFromServer();
-            loadEntries();
+            
+            // Cargar desde localStorage (que ya tiene los datos del servidor)
+            let allEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
+            const entries = allEntries.filter(e => {
+                if (currentSection === 'recuerdos') {
+                    return !e.type || e.type === 'recuerdos';
+                }
+                return e.type === 'anhelos';
+            });
+            
+            if (entries.length > 0) {
+                displayEntriesWithPagination(entries);
+            }
+            
             console.log('✅ Sincronización completada');
         } catch (error) {
             console.error('❌ Error en sincronización:', error);
@@ -243,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
         newEntryBtn.style.display = 'inline-block';
     });
     
-    // Función para comprimir imágenes (versión optimizada para MongoDB)
+    // Función para comprimir imágenes
     function compressImage(file, maxWidth = 800, quality = 0.8) {
         return new Promise((resolve, reject) => {
             const canvas = document.createElement('canvas');
@@ -257,7 +268,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     let targetWidth = maxWidth;
                     let targetQuality = quality;
                     
-                    // Compresión más agresiva para MongoDB
+                    // Compresión más agresiva para archivos grandes
                     if (fileSizeMB > 5) {
                         targetWidth = 500;  // Más pequeño
                         targetQuality = 0.5; // Más compresión
@@ -281,7 +292,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const compressedDataUrl = canvas.toDataURL('image/jpeg', targetQuality);
                     const compressedSize = compressedDataUrl.length * 0.75 / 1024;
                     
-                    console.log(`📸 Foto optimizada para MongoDB:`);
+                    console.log(`📸 Foto optimizada:`);
                     console.log(`   Original: ${(file.size / 1024).toFixed(0)}KB (${img.width}x${img.height}px)`);
                     console.log(`   Comprimida: ${compressedSize.toFixed(0)}KB (${width}x${height}px)`);
                     console.log(`   Reducción: ${(((file.size - compressedSize * 1024) / file.size) * 100).toFixed(1)}%`);
@@ -725,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.setItem('diaryEntries', JSON.stringify(entries));
             
             // Intentar sincronizar con la base de datos
-            saveEntryToMongoDB(entries[index]);
+            saveEntryToServer(entries[index]);
             
             loadEntries();
         }
