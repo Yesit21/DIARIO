@@ -1,75 +1,36 @@
-// Servidor Node.js Potente: Soporta SQLite (Local) y PostgreSQL (Despliegue)
+// Servidor Node.js para Railway con PostgreSQL
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const { Pool } = require('pg'); // Driver para PostgreSQL
+const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8081;
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '100mb' }));
 app.use(express.static('.'));
 
-// --- CONFIGURACIÓN DE BASE DE DATOS ---
-let db;
+// --- CONFIGURACIÓN DE BASE DE DATOS PostgreSQL ---
 const IS_PROD = process.env.DATABASE_URL ? true : false;
 
-if (IS_PROD) {
-    // Configuración para PostgreSQL (Railway / Supabase)
-    console.log('🚀 Iniciando en modo PRODUCCIÓN con PostgreSQL');
-    db = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
-    });
-    
-    // Crear tablas en PostgreSQL
-    const initQuery = `
-        CREATE TABLE IF NOT EXISTS entries (
-            id BIGINT PRIMARY KEY,
-            type TEXT,
-            title TEXT,
-            text TEXT,
-            date TEXT,
-            photos TEXT,
-            price TEXT,
-            status TEXT,
-            serverTimestamp TEXT
-        );
-    `;
-    db.query(initQuery).catch(err => console.error('❌ Error init Postgres:', err));
+if (!process.env.DATABASE_URL) {
+    console.log('⚠️  No se encontró DATABASE_URL en las variables de entorno');
+    console.log('💡 Ejecuta localmente con: DATABASE_URL=tu_url_postgresql npm start');
+}
 
-} else {
-    // Configuración para SQLite (Desarrollo Local)
-    console.log('💻 Iniciando en modo DESARROLLO con SQLite');
-    const sqliteDb = new sqlite3.Database('./diary.db');
-    
-    // Adaptador para que SQLite use la misma interfaz que el Pool de pg
-    db = {
-        query: (text, params) => {
-            return new Promise((resolve, reject) => {
-                // Convertir sintaxis $1, $2 de Postgres a SQLite (?)
-                const sql = text.replace(/\$(\d+)/g, '?');
-                if (text.trim().toUpperCase().startsWith('SELECT')) {
-                    sqliteDb.all(sql, params, (err, rows) => {
-                        if (err) reject(err);
-                        else resolve({ rows });
-                    });
-                } else {
-                    sqliteDb.run(sql, params, function(err) {
-                        if (err) reject(err);
-                        else resolve({ rows: [], lastID: this.lastID });
-                    });
-                }
-            });
-        }
-    };
+const db = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: IS_PROD ? { rejectUnauthorized: false } : false
+});
 
-    // Crear tabla en SQLite
-    db.query(`CREATE TABLE IF NOT EXISTS entries (
-        id INTEGER PRIMARY KEY,
+console.log(IS_PROD ? '🚀 Iniciando en modo PRODUCCIÓN con PostgreSQL' : '💻 Iniciando en modo DESARROLLO con PostgreSQL');
+
+// Crear tabla si no existe
+const initQuery = `
+    CREATE TABLE IF NOT EXISTS entries (
+        id BIGINT PRIMARY KEY,
         type TEXT,
         title TEXT,
         text TEXT,
@@ -78,21 +39,23 @@ if (IS_PROD) {
         price TEXT,
         status TEXT,
         serverTimestamp TEXT
-    )`).then(() => {
-        // Asegurar columnas para migración local
-        ['type', 'price', 'status'].forEach(col => {
-            db.query(`ALTER TABLE entries ADD COLUMN ${col} TEXT`).catch(() => {});
-        });
-    });
-}
+    );
+`;
 
-// --- API ---
+db.query(initQuery)
+    .then(() => console.log('✅ Tabla "entries" lista'))
+    .catch(err => console.error('❌ Error creando tabla:', err));
+
+// --- API ENDPOINTS ---
 
 app.post('/api/sync-local-entries', async (req, res) => {
     try {
         const { entries } = req.body;
-        if (!entries || !Array.isArray(entries)) return res.status(400).json({ error: 'No data' });
+        if (!entries || !Array.isArray(entries)) {
+            return res.status(400).json({ error: 'No data provided' });
+        }
 
+        let syncedCount = 0;
         for (const entry of entries) {
             const photosJson = JSON.stringify(entry.photos || []);
             const query = `
@@ -108,15 +71,24 @@ app.post('/api/sync-local-entries', async (req, res) => {
                     serverTimestamp = EXCLUDED.serverTimestamp;
             `;
             const params = [
-                entry.id, entry.type || 'recuerdos', entry.title, entry.text,
-                entry.date || new Date().toISOString(), photosJson,
-                entry.price || null, entry.status || null, new Date().toISOString()
+                entry.id,
+                entry.type || 'recuerdos',
+                entry.title || '',
+                entry.text || '',
+                entry.date || new Date().toISOString(),
+                photosJson,
+                entry.price || null,
+                entry.status || null,
+                new Date().toISOString()
             ];
             await db.query(query, params);
+            syncedCount++;
         }
-        res.json({ success: true, count: entries.length });
+        
+        console.log(`✅ Sincronizadas ${syncedCount} entradas`);
+        res.json({ success: true, syncedCount });
     } catch (error) {
-        console.error(error);
+        console.error('❌ Error en sync:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -130,6 +102,7 @@ app.get('/api/entries', async (req, res) => {
         }));
         res.json({ success: true, entries });
     } catch (error) {
+        console.error('❌ Error obteniendo entradas:', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -137,6 +110,10 @@ app.get('/api/entries', async (req, res) => {
 app.post('/api/entries', async (req, res) => {
     try {
         const { entry } = req.body;
+        if (!entry || !entry.id) {
+            return res.status(400).json({ error: 'Invalid entry data' });
+        }
+        
         const photosJson = JSON.stringify(entry.photos || []);
         const query = `
             INSERT INTO entries (id, type, title, text, date, photos, price, status, serverTimestamp)
@@ -151,15 +128,40 @@ app.post('/api/entries', async (req, res) => {
                 serverTimestamp = EXCLUDED.serverTimestamp;
         `;
         const params = [
-            entry.id, entry.type || 'recuerdos', entry.title, entry.text,
-            entry.date || new Date().toISOString(), photosJson,
-            entry.price || null, entry.status || null, new Date().toISOString()
+            entry.id,
+            entry.type || 'recuerdos',
+            entry.title || '',
+            entry.text || '',
+            entry.date || new Date().toISOString(),
+            photosJson,
+            entry.price || null,
+            entry.status || null,
+            new Date().toISOString()
         ];
         await db.query(query, params);
         res.json({ success: true });
     } catch (error) {
+        console.error('❌ Error guardando entrada:', error);
         res.status(500).json({ error: error.message });
     }
+});
+
+app.delete('/api/entries/:id', async (req, res) => {
+    try {
+        const entryId = req.params.id;
+        const query = 'DELETE FROM entries WHERE id = $1';
+        await db.query(query, [entryId]);
+        console.log(`🗑️  Entrada ${entryId} eliminada`);
+        res.json({ success: true, message: 'Entrada eliminada' });
+    } catch (error) {
+        console.error('❌ Error eliminando entrada:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Health check para Railway
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 app.listen(PORT, () => {

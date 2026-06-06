@@ -9,6 +9,11 @@
     <meta name="theme-color" content="#e91e63">
 </head>
 <body class="diary-page">
+    <div class="theme-toggle">
+        <button id="themeToggleBtn" class="theme-toggle-btn" title="Cambiar modo">
+            <span id="themeIcon">🌙</span>
+        </button>
+    </div>
     <header>
         <h1>💕 Nuestros Recuerdos de Amor 💕</h1>
         <div class="section-switcher">
@@ -45,7 +50,7 @@
         </div>
     </main>
 
-    <script src="diary.js"></script>
+    <script src="diary.js?v=3"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
