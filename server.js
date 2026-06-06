@@ -1,4 +1,5 @@
 // Servidor Node.js para Railway con PostgreSQL
+require('dotenv').config(); // Cargar variables de entorno
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
@@ -15,10 +16,11 @@ app.use(express.static('.'));
 // --- CONFIGURACIÓN DE BASE DE DATOS PostgreSQL ---
 const IS_PROD = process.env.DATABASE_URL ? true : false;
 
-if (!process.env.DATABASE_URL) {
-    console.log('⚠️  No se encontró DATABASE_URL en las variables de entorno');
-    console.log('💡 Ejecuta localmente con: DATABASE_URL=tu_url_postgresql npm start');
-}
+if (!process.env.DATABASE_URL) { 
+    console.log('No se encontró DATABASE_URL en las variables de entorno'); 
+} 
+
+console.log('DATABASE_URL:', process.env.DATABASE_URL); 
 
 const db = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -166,4 +168,81 @@ app.get('/health', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 Servidor listo en puerto ${PORT}`);
+});
+
+// --- ENDPOINT PARA MENSAJES MOTIVACIONALES CON IA ---
+app.post('/api/motivational-message', async (req, res) => {
+    try {
+        // Usar Groq (gratis) para generar mensajes
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.GROQ_API_KEY || 'gsk_demo_key'}`
+            },
+            body: JSON.stringify({
+                model: 'llama-3.1-8b-instant',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Genera mensajes motivacionales MUY CORTOS (máximo 8 palabras) para una mujer. Deben ser positivos, inspiradores y directos. Habla en segunda persona (tú). Incluye un emoji al inicio.'
+                    },
+                    {
+                        role: 'user',
+                        content: 'Dame un mensaje motivacional corto y poderoso.'
+                    }
+                ],
+                temperature: 1.2,
+                max_tokens: 30
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            const message = data.choices[0].message.content;
+            res.json({ success: true, message });
+        } else {
+            // Fallback a mensajes predefinidos
+            const messages = [
+                "✨ Hoy es tu día para brillar",
+                "💪 Eres más fuerte de lo que crees",
+                "🌟 Tu luz inspira a otros",
+                "💖 Mereces todo lo bueno",
+                "🦋 Hoy eliges ser feliz",
+                "👑 Eres suficiente tal como eres",
+                "🌸 Tu sonrisa cambia el mundo",
+                "💫 Confía en tu camino",
+                "🌺 Hoy te eliges a ti primero",
+                "🔥 Tu energía es imparable",
+                "💝 Eres valiosa y única",
+                "⭐ Hoy creas tu propia magia",
+                "🌈 Todo está mejorando para ti",
+                "💕 Eres digna de amor y respeto",
+                "🎯 Tus metas están más cerca"
+            ];
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            res.json({ success: true, message: randomMessage });
+        }
+    } catch (error) {
+        // Fallback si falla todo
+        const messages = [
+            "✨ Hoy es tu día para brillar",
+            "💪 Eres más fuerte de lo que crees",
+            "🌟 Tu luz inspira a otros",
+            "💖 Mereces todo lo bueno",
+            "🦋 Hoy eliges ser feliz",
+            "👑 Eres suficiente tal como eres",
+            "🌸 Tu sonrisa cambia el mundo",
+            "💫 Confía en tu camino",
+            "🌺 Hoy te eliges a ti primero",
+            "🔥 Tu energía es imparable",
+            "💝 Eres valiosa y única",
+            "⭐ Hoy creas tu propia magia",
+            "🌈 Todo está mejorando para ti",
+            "💕 Eres digna de amor y respeto",
+            "🎯 Tus metas están más cerca"
+        ];
+        const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+        res.json({ success: true, message: randomMessage });
+    }
 });

@@ -18,6 +18,7 @@
         <h1>💕 Nuestros Recuerdos de Amor 💕</h1>
         <div class="section-switcher">
             <button id="showRecuerdos" class="section-btn active">Recuerdos</button>
+            <button id="showCuaderno" class="section-btn">📝 Cuaderno</button>
             <button id="showAnhelos" class="section-btn">Mis Deseos</button>
         </div>
         <div class="header-controls">
@@ -48,9 +49,42 @@
         <div id="entriesContainer" class="entries-container">
             <!-- Las entradas se mostrarán aquí -->
         </div>
+
+        <!-- Cuaderno Estilo Snoopy -->
+        <div id="cuadernoContainer" class="cuaderno-container hidden">
+            <div class="cuaderno-page">
+                <div class="cuaderno-header">
+                    <div class="snoopy-decoration">🐾</div>
+                    <h2 class="cuaderno-title">Mi Cuaderno Personal</h2>
+                    <div class="snoopy-decoration">🐾</div>
+                </div>
+                
+                <div class="cuaderno-info">
+                    <span id="cuadernoDate"></span>
+                    <span id="cuadernoWordCount">0 palabras</span>
+                </div>
+                
+                <textarea 
+                    id="cuadernoTextarea" 
+                    class="cuaderno-textarea" 
+                    placeholder="Querido diario...&#10;&#10;Escribe lo que quieras, sin límites. Este es tu espacio personal para expresar todo lo que sientes. 💭"
+                ></textarea>
+                
+                <div class="cuaderno-footer">
+                    <button id="saveCuaderno" class="btn-cuaderno">💾 Guardar</button>
+                    <button id="clearCuaderno" class="btn-cuaderno-secondary">🗑️ Limpiar</button>
+                </div>
+                
+                <!-- Snoopy caminando -->
+                <div class="snoopy-walking-container">
+                    <div class="snoopy-character">🐕</div>
+                </div>
+            </div>
+        </div>
     </main>
 
-    <script src="diary.js?v=3"></script>
+    <script src="diary.js?v=4"></script>
+    <script src="cursor-hearts.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
