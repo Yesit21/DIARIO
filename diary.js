@@ -90,19 +90,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!isOnline) return JSON.parse(localStorage.getItem('diaryEntries')) || [];
         
         try {
+            console.log('📡 Pidiendo entradas al servidor...');
             const response = await fetch('/api/entries');
             if (response.ok) {
                 const data = await response.json();
                 const serverEntries = data.entries || [];
                 
-                // Mezclar con locales y evitar duplicados
+                // Mezclar con locales y evitar duplicados, PRIORIZANDO los del servidor
                 const localEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-                const allEntries = [...localEntries, ...serverEntries];
-                const uniqueEntries = allEntries.filter((entry, index, self) => 
-                    index === self.findIndex(e => e.id === entry.id)
-                );
+                
+                // Usamos un Map para manejar duplicados por ID, el servidor sobreescribe lo local
+                const entriesMap = new Map();
+                
+                // Primero metemos los locales
+                localEntries.forEach(entry => {
+                    if (entry && entry.id) entriesMap.set(String(entry.id), entry);
+                });
+                
+                // Luego los del servidor (que sobreescribirán los locales con el mismo ID)
+                serverEntries.forEach(entry => {
+                    if (entry && entry.id) entriesMap.set(String(entry.id), entry);
+                });
+                
+                const uniqueEntries = Array.from(entriesMap.values());
                 
                 localStorage.setItem('diaryEntries', JSON.stringify(uniqueEntries));
+                console.log(`✅ ${serverEntries.length} entradas recibidas del servidor.`);
                 return uniqueEntries;
             }
         } catch (error) {
@@ -116,23 +129,13 @@ document.addEventListener('DOMContentLoaded', function() {
         isSyncing = true;
         
         try {
-            console.log('🔄 Sincronizando con el servidor...');
+            console.log('🔄 Iniciando sincronización...');
             await loadEntriesFromServer();
             
-            // Cargar desde localStorage (que ya tiene los datos del servidor)
-            let allEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-            const entries = allEntries.filter(e => {
-                if (currentSection === 'recuerdos') {
-                    return !e.type || e.type === 'recuerdos';
-                }
-                return e.type === 'anhelos';
-            });
+            // Forzar actualización de la pantalla leyendo lo que acabamos de guardar
+            loadEntries();
+            console.log('✨ Pantalla actualizada con datos del servidor');
             
-            if (entries.length > 0) {
-                displayEntriesWithPagination(entries);
-            }
-            
-            console.log('✅ Sincronización completada');
         } catch (error) {
             console.error('❌ Error en sincronización:', error);
         } finally {
@@ -179,15 +182,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // Cargar entradas desde localStorage inmediatamente
-    loadEntries();
-    
-    // Intentar sincronizar con el servidor en segundo plano
-    if (isOnline) {
-        syncWithServer().then(() => {
-        }).catch(() => {
-        });
-    }
+    // Inicializar la UI de la sección actual
+    updateSectionUI();
     
     // Manejar cambio de secciones
     const showRecuerdosBtn = document.getElementById('showRecuerdos');
@@ -550,9 +546,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Ordenar por ID (que es timestamp) en lugar de fecha
         const sortedEntries = entries.sort((a, b) => a.id - b.id);
         
-        console.log('📋 Entradas ordenadas:', sortedEntries);
-        
         const totalPages = Math.ceil(sortedEntries.length / entriesPerPage);
+        
+        // Asegurar que la página actual sea válida
+        if (currentPage > totalPages) {
+            currentPage = totalPages || 1;
+        }
+        
         entriesContainer.innerHTML = '';
         
         console.log(`📖 Creando ${totalPages} páginas`);
@@ -562,12 +562,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const endIndex = startIndex + entriesPerPage;
             const pageEntries = sortedEntries.slice(startIndex, endIndex);
             
-            console.log(`📄 Página ${pageNum}: ${pageEntries.length} entradas`);
             createPage(pageNum, pageEntries, pageNum === currentPage);
         }
         
         createPagination(totalPages);
-        console.log('✅ Paginación completada');
     }
     
     function createPage(pageNum, entries, isVisible) {
@@ -931,24 +929,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     };
     
-    // Cargar entradas existentes
-    console.log('🚀 Iniciando carga de entradas...');
-    loadEntries();
+    // Cargar entradas existentes y sincronizar
+    console.log('🚀 Iniciando aplicación...');
+    
+    // El primer loadEntries ya ocurre dentro de updateSectionUI() arriba
+    
+    // Intentar sincronizar con el servidor inmediatamente si hay internet
+    if (isOnline) {
+        console.log('🌐 Online: Sincronizando datos con el servidor...');
+        syncWithServer().then(() => {
+            console.log('✅ Sincronización inicial completada');
+            // Después de bajar del servidor, subir lo local que falte
+            syncLocalEntriesToDatabase();
+        });
+    } else {
+        console.log('� Offline: Trabajando con datos locales');
+    }
     
     // Cargar mensaje motivacional al entrar
     loadMotivationalMessage();
     
     // Funcionalidad del Cuaderno
     initCuaderno();
-    
-    // Sincronizar entradas locales automáticamente después de 3 segundos
-    setTimeout(() => {
-        const localEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-        if (localEntries.length > 0) {
-            console.log(`🔄 Auto-sincronizando ${localEntries.length} entradas locales...`);
-            syncLocalEntriesToDatabase();
-        }
-    }, 3000);
     
 }); // Cierre del DOMContentLoaded
 
