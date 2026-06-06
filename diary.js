@@ -90,19 +90,32 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!isOnline) return JSON.parse(localStorage.getItem('diaryEntries')) || [];
         
         try {
+            console.log('📡 Pidiendo entradas al servidor...');
             const response = await fetch('/api/entries');
             if (response.ok) {
                 const data = await response.json();
                 const serverEntries = data.entries || [];
                 
-                // Mezclar con locales y evitar duplicados
+                // Mezclar con locales y evitar duplicados, PRIORIZANDO los del servidor
                 const localEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-                const allEntries = [...localEntries, ...serverEntries];
-                const uniqueEntries = allEntries.filter((entry, index, self) => 
-                    index === self.findIndex(e => e.id === entry.id)
-                );
+                
+                // Usamos un Map para manejar duplicados por ID, el servidor sobreescribe lo local
+                const entriesMap = new Map();
+                
+                // Primero metemos los locales
+                localEntries.forEach(entry => {
+                    if (entry && entry.id) entriesMap.set(String(entry.id), entry);
+                });
+                
+                // Luego los del servidor (que sobreescribirán los locales con el mismo ID)
+                serverEntries.forEach(entry => {
+                    if (entry && entry.id) entriesMap.set(String(entry.id), entry);
+                });
+                
+                const uniqueEntries = Array.from(entriesMap.values());
                 
                 localStorage.setItem('diaryEntries', JSON.stringify(uniqueEntries));
+                console.log(`✅ ${serverEntries.length} entradas recibidas del servidor.`);
                 return uniqueEntries;
             }
         } catch (error) {
@@ -116,23 +129,13 @@ document.addEventListener('DOMContentLoaded', function() {
         isSyncing = true;
         
         try {
-            console.log('🔄 Sincronizando con el servidor...');
+            console.log('🔄 Iniciando sincronización...');
             await loadEntriesFromServer();
             
-            // Cargar desde localStorage (que ya tiene los datos del servidor)
-            let allEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-            const entries = allEntries.filter(e => {
-                if (currentSection === 'recuerdos') {
-                    return !e.type || e.type === 'recuerdos';
-                }
-                return e.type === 'anhelos';
-            });
+            // Forzar actualización de la pantalla leyendo lo que acabamos de guardar
+            loadEntries();
+            console.log('✨ Pantalla actualizada con datos del servidor');
             
-            if (entries.length > 0) {
-                displayEntriesWithPagination(entries);
-            }
-            
-            console.log('✅ Sincronización completada');
         } catch (error) {
             console.error('❌ Error en sincronización:', error);
         } finally {
@@ -179,44 +182,61 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // Cargar entradas desde localStorage inmediatamente
-    loadEntries();
-    
-    // Intentar sincronizar con el servidor en segundo plano
-    if (isOnline) {
-        syncWithServer().then(() => {
-        }).catch(() => {
-        });
-    }
+    // Inicializar la UI de la sección actual
+    updateSectionUI();
     
     // Manejar cambio de secciones
     const showRecuerdosBtn = document.getElementById('showRecuerdos');
     const showAnhelosBtn = document.getElementById('showAnhelos');
+    const showCuadernoBtn = document.getElementById('showCuaderno');
     const headerTitle = document.querySelector('header h1');
     const formTitle = document.querySelector('#entryForm h2');
     const anhelosFields = document.getElementById('anhelosFields');
     const entryTextarea = document.getElementById('entryText');
+    const cuadernoContainer = document.getElementById('cuadernoContainer');
 
     function updateSectionUI() {
+        // Ocultar todo primero
+        entriesContainer.style.display = 'none';
+        cuadernoContainer.classList.add('hidden');
+        entryForm.classList.add('hidden');
+        newEntryBtn.style.display = 'none';
+        
+        // Remover active de todos los botones
+        showRecuerdosBtn.classList.remove('active');
+        showAnhelosBtn.classList.remove('active');
+        showCuadernoBtn.classList.remove('active');
+        
         if (currentSection === 'recuerdos') {
             document.body.classList.remove('anhelos-theme');
             showRecuerdosBtn.classList.add('active');
-            showAnhelosBtn.classList.remove('active');
             headerTitle.innerHTML = '💕 Nuestros Recuerdos de Amor 💕';
             formTitle.innerHTML = 'Nuevo Recuerdo';
             anhelosFields.classList.add('hidden');
             entryTextarea.placeholder = 'Escribe aquí tus pensamientos...';
+            entriesContainer.style.display = 'block';
+            newEntryBtn.style.display = 'inline-block';
+        } else if (currentSection === 'cuaderno') {
+            document.body.classList.remove('anhelos-theme');
+            showCuadernoBtn.classList.add('active');
+            headerTitle.innerHTML = '📝 Mi Cuaderno Personal 📝';
+            cuadernoContainer.classList.remove('hidden');
+            loadCuaderno();
         } else {
             document.body.classList.add('anhelos-theme');
-            showRecuerdosBtn.classList.remove('active');
             showAnhelosBtn.classList.add('active');
             headerTitle.innerHTML = 'Mis Deseos';
             formTitle.innerHTML = 'Nuevo Deseo';
             anhelosFields.classList.remove('hidden');
             entryTextarea.placeholder = 'Descripción o detalles (opcional)';
+            entriesContainer.style.display = 'block';
+            newEntryBtn.style.display = 'inline-block';
         }
-        currentPage = 1; // Resetear página al cambiar sección
-        loadEntries();
+        
+        if (currentSection !== 'cuaderno') {
+            currentPage = 1;
+            loadEntries();
+        }
     }
 
     showRecuerdosBtn.addEventListener('click', () => {
@@ -229,6 +249,13 @@ document.addEventListener('DOMContentLoaded', function() {
     showAnhelosBtn.addEventListener('click', () => {
         if (currentSection !== 'anhelos') {
             currentSection = 'anhelos';
+            updateSectionUI();
+        }
+    });
+
+    showCuadernoBtn.addEventListener('click', () => {
+        if (currentSection !== 'cuaderno') {
+            currentSection = 'cuaderno';
             updateSectionUI();
         }
     });
@@ -519,9 +546,13 @@ document.addEventListener('DOMContentLoaded', function() {
         // Ordenar por ID (que es timestamp) en lugar de fecha
         const sortedEntries = entries.sort((a, b) => a.id - b.id);
         
-        console.log('📋 Entradas ordenadas:', sortedEntries);
-        
         const totalPages = Math.ceil(sortedEntries.length / entriesPerPage);
+        
+        // Asegurar que la página actual sea válida
+        if (currentPage > totalPages) {
+            currentPage = totalPages || 1;
+        }
+        
         entriesContainer.innerHTML = '';
         
         console.log(`📖 Creando ${totalPages} páginas`);
@@ -531,12 +562,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const endIndex = startIndex + entriesPerPage;
             const pageEntries = sortedEntries.slice(startIndex, endIndex);
             
-            console.log(`📄 Página ${pageNum}: ${pageEntries.length} entradas`);
             createPage(pageNum, pageEntries, pageNum === currentPage);
         }
         
         createPagination(totalPages);
-        console.log('✅ Paginación completada');
     }
     
     function createPage(pageNum, entries, isVisible) {
@@ -900,17 +929,217 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10);
     };
     
-    // Cargar entradas existentes
-    console.log('🚀 Iniciando carga de entradas...');
-    loadEntries();
+    // Cargar entradas existentes y sincronizar
+    console.log('🚀 Iniciando aplicación...');
     
-    // Sincronizar entradas locales automáticamente después de 3 segundos
-    setTimeout(() => {
-        const localEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-        if (localEntries.length > 0) {
-            console.log(`🔄 Auto-sincronizando ${localEntries.length} entradas locales...`);
+    // El primer loadEntries ya ocurre dentro de updateSectionUI() arriba
+    
+    // Intentar sincronizar con el servidor inmediatamente si hay internet
+    if (isOnline) {
+        console.log('🌐 Online: Sincronizando datos con el servidor...');
+        syncWithServer().then(() => {
+            console.log('✅ Sincronización inicial completada');
+            // Después de bajar del servidor, subir lo local que falte
             syncLocalEntriesToDatabase();
-        }
-    }, 3000);
+        });
+    } else {
+        console.log('� Offline: Trabajando con datos locales');
+    }
+    
+    // Cargar mensaje motivacional al entrar
+    loadMotivationalMessage();
+    
+    // Funcionalidad del Cuaderno
+    initCuaderno();
     
 }); // Cierre del DOMContentLoaded
+
+// ========== FUNCIONES DEL CUADERNO ==========
+function initCuaderno() {
+    const cuadernoTextarea = document.getElementById('cuadernoTextarea');
+    const saveCuadernoBtn = document.getElementById('saveCuaderno');
+    const clearCuadernoBtn = document.getElementById('clearCuaderno');
+    const wordCountSpan = document.getElementById('cuadernoWordCount');
+    const dateSpan = document.getElementById('cuadernoDate');
+    
+    // Actualizar fecha
+    const updateDate = () => {
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        dateSpan.textContent = now.toLocaleDateString('es-ES', options);
+    };
+    updateDate();
+    
+    // Contador de palabras
+    const updateWordCount = () => {
+        const text = cuadernoTextarea.value.trim();
+        const words = text ? text.split(/\s+/).length : 0;
+        wordCountSpan.textContent = `${words} palabra${words !== 1 ? 's' : ''}`;
+    };
+    
+    cuadernoTextarea.addEventListener('input', updateWordCount);
+    
+    // Guardar cuaderno
+    saveCuadernoBtn.addEventListener('click', () => {
+        const text = cuadernoTextarea.value;
+        const timestamp = new Date().toISOString();
+        
+        localStorage.setItem('cuadernoText', text);
+        localStorage.setItem('cuadernoLastSaved', timestamp);
+        
+        showSavedMessage();
+        console.log('📝 Cuaderno guardado');
+    });
+    
+    // Limpiar cuaderno
+    clearCuadernoBtn.addEventListener('click', () => {
+        if (confirm('¿Estás segura de que quieres limpiar el cuaderno? Esta acción no se puede deshacer.')) {
+            cuadernoTextarea.value = '';
+            updateWordCount();
+            localStorage.removeItem('cuadernoText');
+            console.log('🗑️ Cuaderno limpiado');
+        }
+    });
+    
+    // Autoguardado cada 30 segundos
+    setInterval(() => {
+        if (cuadernoTextarea.value.trim()) {
+            const text = cuadernoTextarea.value;
+            localStorage.setItem('cuadernoText', text);
+            localStorage.setItem('cuadernoLastSaved', new Date().toISOString());
+            console.log('💾 Autoguardado del cuaderno');
+        }
+    }, 30000);
+}
+
+function loadCuaderno() {
+    const cuadernoTextarea = document.getElementById('cuadernoTextarea');
+    const savedText = localStorage.getItem('cuadernoText');
+    
+    if (savedText) {
+        cuadernoTextarea.value = savedText;
+        // Actualizar contador de palabras
+        const text = savedText.trim();
+        const words = text ? text.split(/\s+/).length : 0;
+        document.getElementById('cuadernoWordCount').textContent = `${words} palabra${words !== 1 ? 's' : ''}`;
+    }
+}
+
+function showSavedMessage() {
+    const message = document.createElement('div');
+    message.className = 'cuaderno-saved-message';
+    message.textContent = '✅ Guardado exitosamente';
+    document.body.appendChild(message);
+    
+    setTimeout(() => {
+        if (message.parentNode) {
+            message.parentNode.removeChild(message);
+        }
+    }, 3000);
+}
+
+// Función para cargar mensaje motivacional
+async function loadMotivationalMessage() {
+    try {
+        const response = await fetch('/api/motivational-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            showMotivationalMessage(data.message);
+        }
+    } catch (error) {
+        console.log('No se pudo cargar mensaje motivacional');
+    }
+}
+
+// Mostrar mensaje motivacional
+function showMotivationalMessage(message) {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease;
+    `;
+    
+    const messageBox = document.createElement('div');
+    messageBox.style.cssText = `
+        background: linear-gradient(135deg, #ffeef8 0%, #ffe4f0 100%);
+        padding: 40px;
+        border-radius: 20px;
+        max-width: 500px;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(233, 30, 99, 0.4);
+        animation: scaleIn 0.5s ease;
+        border: 3px solid #f8bbd9;
+    `;
+    
+    messageBox.innerHTML = `
+        <div style="font-size: 3em; margin-bottom: 20px;">💕</div>
+        <h2 style="color: #d81b60; margin-bottom: 20px; font-family: Georgia, serif;">Mensaje del Corazón</h2>
+        <p style="color: #ad1457; font-size: 1.2em; line-height: 1.6; font-style: italic;">${message}</p>
+        <button id="closeMotivational" style="
+            margin-top: 30px;
+            background: #e91e63;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(233, 30, 99, 0.3);
+            transition: all 0.3s ease;
+        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            ¡Gracias! 💖
+        </button>
+    `;
+    
+    modal.appendChild(messageBox);
+    document.body.appendChild(modal);
+    
+    document.getElementById('closeMotivational').addEventListener('click', () => {
+        modal.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => {
+            document.body.removeChild(modal);
+        }, 300);
+    });
+    
+    // Cerrar al hacer clic fuera
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.style.animation = 'fadeOut 0.3s ease';
+            setTimeout(() => {
+                document.body.removeChild(modal);
+            }, 300);
+        }
+    });
+}
+
+// Agregar animaciones CSS
+const motivationalStyle = document.createElement('style');
+motivationalStyle.textContent = `
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+    @keyframes scaleIn {
+        from { transform: scale(0.8); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+`;
+document.head.appendChild(motivationalStyle);
