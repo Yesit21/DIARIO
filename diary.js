@@ -28,6 +28,38 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorage.setItem('theme', newTheme);
         themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
     });
+    
+    // Crear indicador de estado de conexión
+    const connectionIndicator = document.createElement('div');
+    connectionIndicator.id = 'connectionStatus';
+    connectionIndicator.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 80px;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: bold;
+        z-index: 1000;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    `;
+    document.body.appendChild(connectionIndicator);
+    
+    // Función para actualizar indicador de conexión
+    function updateConnectionStatus() {
+        if (isOnline) {
+            connectionIndicator.textContent = '🌐 Conectado';
+            connectionIndicator.style.background = '#4caf50';
+            connectionIndicator.style.color = 'white';
+        } else {
+            connectionIndicator.textContent = '📴 Modo Offline';
+            connectionIndicator.style.background = '#ff9800';
+            connectionIndicator.style.color = 'white';
+        }
+    }
+    
+    updateConnectionStatus();
 
     const newEntryBtn = document.getElementById('newEntryBtn');
     const entryForm = document.getElementById('entryForm');
@@ -59,6 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Detectar cambios de conexión
     window.addEventListener('online', () => {
         isOnline = true;
+        updateConnectionStatus();
         console.log('🌐 Conexión recuperada, iniciando sincronización...');
         syncWithServer();
         syncLocalEntriesToDatabase(); // Asegurar que lo local se suba a la nube
@@ -66,6 +99,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     window.addEventListener('offline', () => {
         isOnline = false;
+        updateConnectionStatus();
+        console.log('📴 Sin conexión - trabajando en modo offline');
     });
     
     // Función para guardar entrada en el servidor
