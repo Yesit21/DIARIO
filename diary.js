@@ -1208,6 +1208,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Funcionalidad del Cuaderno
     initCuaderno();
     
+    // Inicializar calendario
+    initCalendar();
+    
 }); // Cierre del DOMContentLoaded
 
 // ========== FUNCIONES DEL CUADERNO ==========
@@ -1935,9 +1938,4 @@ function scheduleReminder(event) {
     }
 }
 
-// Inicializar calendario cuando se carga el documento
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCalendar);
-} else {
-    initCalendar();
-}
+// El calendario se inicializa dentro del DOMContentLoaded principal
