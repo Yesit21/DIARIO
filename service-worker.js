@@ -1,4 +1,4 @@
-const CACHE_NAME = 'diario-cache-v3';
+const CACHE_NAME = 'diario-cache-v7';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
