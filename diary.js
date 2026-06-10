@@ -1560,6 +1560,12 @@ function initCalendar() {
     const prevMonthBtn = document.getElementById('prevMonth');
     const nextMonthBtn = document.getElementById('nextMonth');
     
+    // IMPORTANTE: Asegurar que el modal esté oculto al iniciar
+    if (eventModal) {
+        eventModal.classList.add('hidden');
+        console.log('✅ Modal de eventos ocultado al inicializar');
+    }
+    
     // Solicitar permisos de notificaciones
     requestNotificationPermission();
     
@@ -1579,27 +1585,52 @@ function initCalendar() {
         });
     }
     
-    addEventBtn.addEventListener('click', () => {
-        eventModal.classList.remove('hidden');
-        document.getElementById('eventDate').valueAsDate = new Date();
-    });
+    if (addEventBtn) {
+        addEventBtn.addEventListener('click', () => {
+            console.log('🖱️ Click en Agregar Evento');
+            eventModal.classList.remove('hidden');
+            document.getElementById('eventDate').valueAsDate = new Date();
+        });
+    }
     
-    cancelEventBtn.addEventListener('click', () => {
-        eventModal.classList.add('hidden');
-        clearEventForm();
-    });
+    if (cancelEventBtn) {
+        cancelEventBtn.addEventListener('click', (e) => {
+            console.log('🖱️ Click en Cancelar Evento');
+            e.preventDefault();
+            e.stopPropagation();
+            eventModal.classList.add('hidden');
+            clearEventForm();
+        });
+    }
     
-    saveEventBtn.addEventListener('click', saveCalendarEvent);
+    if (saveEventBtn) {
+        saveEventBtn.addEventListener('click', saveCalendarEvent);
+    }
     
-    prevMonthBtn.addEventListener('click', () => {
-        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
-        renderCalendar();
-    });
+    if (prevMonthBtn) {
+        prevMonthBtn.addEventListener('click', () => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+            renderCalendar();
+        });
+    }
     
-    nextMonthBtn.addEventListener('click', () => {
-        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
-        renderCalendar();
-    });
+    if (nextMonthBtn) {
+        nextMonthBtn.addEventListener('click', () => {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+            renderCalendar();
+        });
+    }
+    
+    // Cerrar modal al hacer clic fuera
+    if (eventModal) {
+        eventModal.addEventListener('click', (e) => {
+            if (e.target === eventModal) {
+                console.log('🖱️ Click fuera del modal - cerrando');
+                eventModal.classList.add('hidden');
+                clearEventForm();
+            }
+        });
+    }
     
     // Verificar recordatorios cada hora
     setInterval(checkUpcomingReminders, 3600000);
