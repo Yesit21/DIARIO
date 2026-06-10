@@ -1430,11 +1430,22 @@ header h1 {
 /* Snoopy caminando en el cuaderno */
 .snoopy-walking-container {
     position: relative;
-    height: 60px;
+    height: 80px;
     margin-top: 20px;
     overflow: hidden;
     border-top: 2px dashed #d4a574;
     padding-top: 10px;
+    display: flex;
+    align-items: flex-end;
+}
+
+.snoopy-character-img {
+    position: absolute;
+    height: 70px;
+    width: auto;
+    animation: walkSnoopy 15s linear infinite;
+    transform-origin: center bottom;
+    filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .snoopy-character {
@@ -1446,7 +1457,7 @@ header h1 {
 
 @keyframes walkSnoopy {
     0% {
-        left: -60px;
+        left: -80px;
         transform: scaleX(1) translateY(0);
     }
     5% {
@@ -1462,11 +1473,11 @@ header h1 {
         transform: scaleX(1) translateY(0);
     }
     48% {
-        left: calc(100% - 30px);
+        left: calc(100% - 40px);
         transform: scaleX(1) translateY(0);
     }
     50% {
-        left: calc(100% - 30px);
+        left: calc(100% - 40px);
         transform: scaleX(-1) translateY(0);
     }
     55% {
@@ -1482,17 +1493,18 @@ header h1 {
         transform: scaleX(-1) translateY(0);
     }
     98% {
-        left: -30px;
+        left: -40px;
         transform: scaleX(-1) translateY(0);
     }
     100% {
-        left: -60px;
+        left: -80px;
         transform: scaleX(1) translateY(0);
     }
 }
 
 /* Agregar huellitas detrás de Snoopy */
-.snoopy-character::after {
+.snoopy-character::after,
+.snoopy-character-img::after {
     content: '🐾';
     position: absolute;
     left: -30px;
@@ -1509,6 +1521,14 @@ header h1 {
 
 /* Versión responsive */
 @media (max-width: 768px) {
+    .snoopy-walking-container {
+        height: 60px;
+    }
+    
+    .snoopy-character-img {
+        height: 50px;
+    }
+    
     .snoopy-character {
         font-size: 2em;
     }
