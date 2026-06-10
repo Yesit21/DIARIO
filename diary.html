@@ -25,6 +25,7 @@
         <div class="section-switcher">
             <button id="showRecuerdos" class="section-btn active">Recuerdos</button>
             <button id="showCuaderno" class="section-btn">📝 Cuaderno</button>
+            <button id="showCalendario" class="section-btn">📅 Calendario</button>
             <button id="showAnhelos" class="section-btn">Mis Deseos</button>
         </div>
         <div class="header-controls">
@@ -84,6 +85,54 @@
                 <!-- Snoopy caminando -->
                 <div class="snoopy-walking-container">
                     <div class="snoopy-character">🐕</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendario -->
+        <div id="calendarioContainer" class="calendario-container hidden">
+            <div class="calendario-header">
+                <button id="prevMonth" class="calendar-nav-btn">←</button>
+                <h2 id="currentMonthYear"></h2>
+                <button id="nextMonth" class="calendar-nav-btn">→</button>
+            </div>
+            
+            <div id="calendarThemeMessage" class="calendar-theme-message hidden"></div>
+            
+            <div class="calendar-grid" id="calendarGrid"></div>
+            
+            <div class="calendar-legend">
+                <span><span class="legend-dot" style="background: #e91e63;"></span> Examen</span>
+                <span><span class="legend-dot" style="background: #9c27b0;"></span> Cumpleaños</span>
+                <span><span class="legend-dot" style="background: #2196f3;"></span> Cita</span>
+                <span><span class="legend-dot" style="background: #4caf50;"></span> Otro</span>
+            </div>
+            
+            <button id="addEventBtn" class="btn-add-event">+ Agregar Evento</button>
+            
+            <div id="eventsList" class="events-list"></div>
+        </div>
+
+        <!-- Modal para agregar eventos -->
+        <div id="eventModal" class="event-modal hidden">
+            <div class="event-modal-content">
+                <h3>Agregar Evento</h3>
+                <input type="text" id="eventTitle" placeholder="Título del evento" required>
+                <textarea id="eventDescription" placeholder="Descripción (opcional)"></textarea>
+                <input type="date" id="eventDate" required>
+                <select id="eventType">
+                    <option value="examen">📚 Examen</option>
+                    <option value="cumpleaños">🎂 Cumpleaños</option>
+                    <option value="cita">📅 Cita</option>
+                    <option value="otro">⭐ Otro</option>
+                </select>
+                <label>
+                    <input type="checkbox" id="eventReminder" checked>
+                    Recordarme 1 día antes
+                </label>
+                <div class="event-modal-buttons">
+                    <button id="saveEvent" class="btn-primary">Guardar</button>
+                    <button id="cancelEvent" class="btn-secondary">Cancelar</button>
                 </div>
             </div>
         </div>

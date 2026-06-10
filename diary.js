@@ -382,9 +382,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const cuadernoContainer = document.getElementById('cuadernoContainer');
 
     function updateSectionUI() {
+        const calendarioContainer = document.getElementById('calendarioContainer');
+        
         // Ocultar todo primero
         entriesContainer.style.display = 'none';
         cuadernoContainer.classList.add('hidden');
+        if (calendarioContainer) calendarioContainer.classList.add('hidden');
         entryForm.classList.add('hidden');
         newEntryBtn.style.display = 'none';
         
@@ -392,6 +395,8 @@ document.addEventListener('DOMContentLoaded', function() {
         showRecuerdosBtn.classList.remove('active');
         showAnhelosBtn.classList.remove('active');
         showCuadernoBtn.classList.remove('active');
+        const showCalendarioBtn = document.getElementById('showCalendario');
+        if (showCalendarioBtn) showCalendarioBtn.classList.remove('active');
         
         if (currentSection === 'recuerdos') {
             document.body.classList.remove('anhelos-theme');
@@ -408,6 +413,11 @@ document.addEventListener('DOMContentLoaded', function() {
             headerTitle.innerHTML = '📝 Mi Cuaderno Personal 📝';
             cuadernoContainer.classList.remove('hidden');
             loadCuaderno();
+        } else if (currentSection === 'calendario') {
+            document.body.classList.remove('anhelos-theme');
+            if (showCalendarioBtn) showCalendarioBtn.classList.add('active');
+            headerTitle.innerHTML = '📅 Mi Calendario 📅';
+            if (calendarioContainer) calendarioContainer.classList.remove('hidden');
         } else {
             document.body.classList.add('anhelos-theme');
             showAnhelosBtn.classList.add('active');
@@ -419,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function() {
             newEntryBtn.style.display = 'inline-block';
         }
         
-        if (currentSection !== 'cuaderno') {
+        if (currentSection !== 'cuaderno' && currentSection !== 'calendario') {
             currentPage = 1;
             loadEntries();
         }
@@ -1523,3 +1533,380 @@ toastStyle.textContent = `
     }
 `;
 document.head.appendChild(toastStyle);
+
+
+// ========== CALENDARIO CON RECORDATORIOS ==========
+
+let currentCalendarDate = new Date();
+let calendarEvents = [];
+
+// Fechas especiales con temas
+const specialDates = {
+    '01-01': { name: 'Año Nuevo', theme: '🎆 ¡Feliz Año Nuevo!', color: '#4caf50' },
+    '02-14': { name: 'San Valentín', theme: '💕 ¡Día del Amor y la Amistad!', color: '#e91e63' },
+    '10-31': { name: 'Halloween', theme: '🎃 ¡Noche de Halloween!', color: '#ff9800' },
+    '12-24': { name: 'Nochebuena', theme: '🎄 ¡Feliz Nochebuena!', color: '#4caf50' },
+    '12-25': { name: 'Navidad', theme: '🎅 ¡Feliz Navidad!', color: '#d32f2f' },
+    '12-31': { name: 'Fin de Año', theme: '🎉 ¡Último día del año!', color: '#ffc107' }
+};
+
+function initCalendar() {
+    const showCalendarioBtn = document.getElementById('showCalendario');
+    const calendarioContainer = document.getElementById('calendarioContainer');
+    const addEventBtn = document.getElementById('addEventBtn');
+    const eventModal = document.getElementById('eventModal');
+    const saveEventBtn = document.getElementById('saveEvent');
+    const cancelEventBtn = document.getElementById('cancelEvent');
+    const prevMonthBtn = document.getElementById('prevMonth');
+    const nextMonthBtn = document.getElementById('nextMonth');
+    
+    // Solicitar permisos de notificaciones
+    requestNotificationPermission();
+    
+    // Cargar eventos desde localStorage
+    loadCalendarEvents();
+    
+    // Event listeners
+    if (showCalendarioBtn) {
+        showCalendarioBtn.addEventListener('click', () => {
+            console.log('🖱️ Click en botón Calendario');
+            if (currentSection !== 'calendario') {
+                currentSection = 'calendario';
+                updateSectionUI();
+                renderCalendar();
+                checkUpcomingReminders();
+            }
+        });
+    }
+    
+    addEventBtn.addEventListener('click', () => {
+        eventModal.classList.remove('hidden');
+        document.getElementById('eventDate').valueAsDate = new Date();
+    });
+    
+    cancelEventBtn.addEventListener('click', () => {
+        eventModal.classList.add('hidden');
+        clearEventForm();
+    });
+    
+    saveEventBtn.addEventListener('click', saveCalendarEvent);
+    
+    prevMonthBtn.addEventListener('click', () => {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+        renderCalendar();
+    });
+    
+    nextMonthBtn.addEventListener('click', () => {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+        renderCalendar();
+    });
+    
+    // Verificar recordatorios cada hora
+    setInterval(checkUpcomingReminders, 3600000);
+}
+
+function renderCalendar() {
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+    
+    // Actualizar título
+    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                       'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+    
+    // Verificar tema especial del mes
+    checkSpecialDateTheme(month + 1);
+    
+    // Obtener primer y último día del mes
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const prevLastDay = new Date(year, month, 0);
+    
+    const firstDayWeek = firstDay.getDay();
+    const lastDate = lastDay.getDate();
+    const prevLastDate = prevLastDay.getDate();
+    
+    const calendarGrid = document.getElementById('calendarGrid');
+    calendarGrid.innerHTML = '';
+    
+    // Días de la semana
+    const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    weekDays.forEach(day => {
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'calendar-day-header';
+        dayHeader.style.cssText = 'font-weight: bold; text-align: center; padding: 10px; color: #e91e63;';
+        dayHeader.textContent = day;
+        calendarGrid.appendChild(dayHeader);
+    });
+    
+    // Días del mes anterior
+    for (let i = firstDayWeek - 1; i >= 0; i--) {
+        const day = prevLastDate - i;
+        calendarGrid.appendChild(createDayCell(day, true, year, month - 1));
+    }
+    
+    // Días del mes actual
+    const today = new Date();
+    for (let day = 1; day <= lastDate; day++) {
+        const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+        calendarGrid.appendChild(createDayCell(day, false, year, month, isToday));
+    }
+    
+    // Días del siguiente mes
+    const remainingCells = 42 - (firstDayWeek + lastDate);
+    for (let day = 1; day <= remainingCells; day++) {
+        calendarGrid.appendChild(createDayCell(day, true, year, month + 1));
+    }
+    
+    // Renderizar lista de eventos
+    renderEventsList();
+}
+
+function createDayCell(day, isOtherMonth, year, month, isToday = false) {
+    const cell = document.createElement('div');
+    cell.className = 'calendar-day';
+    if (isOtherMonth) cell.classList.add('other-month');
+    if (isToday) cell.classList.add('today');
+    
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayEvents = calendarEvents.filter(e => e.date === dateStr);
+    
+    if (dayEvents.length > 0) {
+        cell.classList.add('has-event');
+    }
+    
+    cell.innerHTML = `
+        <div class="calendar-day-number">${day}</div>
+        <div class="calendar-event-dots">
+            ${dayEvents.map(e => `<div class="event-dot" style="background: ${getEventColor(e.type)};"></div>`).join('')}
+        </div>
+    `;
+    
+    cell.onclick = () => showDayEvents(dateStr, dayEvents);
+    
+    return cell;
+}
+
+function getEventColor(type) {
+    const colors = {
+        'examen': '#e91e63',
+        'cumpleaños': '#9c27b0',
+        'cita': '#2196f3',
+        'otro': '#4caf50'
+    };
+    return colors[type] || '#4caf50';
+}
+
+function saveCalendarEvent() {
+    const title = document.getElementById('eventTitle').value.trim();
+    const description = document.getElementById('eventDescription').value.trim();
+    const date = document.getElementById('eventDate').value;
+    const type = document.getElementById('eventType').value;
+    const reminder = document.getElementById('eventReminder').checked;
+    
+    if (!title || !date) {
+        showToast('Por favor completa título y fecha', 'error');
+        return;
+    }
+    
+    const event = {
+        id: Date.now(),
+        title,
+        description,
+        date,
+        type,
+        reminder,
+        created: new Date().toISOString()
+    };
+    
+    calendarEvents.push(event);
+    saveCalendarEventsToStorage();
+    
+    // Programar recordatorio si está activado
+    if (reminder) {
+        scheduleReminder(event);
+    }
+    
+    document.getElementById('eventModal').classList.add('hidden');
+    clearEventForm();
+    renderCalendar();
+    showToast('Evento agregado exitosamente', 'success');
+}
+
+function clearEventForm() {
+    document.getElementById('eventTitle').value = '';
+    document.getElementById('eventDescription').value = '';
+    document.getElementById('eventDate').valueAsDate = new Date();
+    document.getElementById('eventType').value = 'examen';
+    document.getElementById('eventReminder').checked = true;
+}
+
+function loadCalendarEvents() {
+    const saved = localStorage.getItem('calendarEvents');
+    if (saved) {
+        calendarEvents = JSON.parse(saved);
+    }
+}
+
+function saveCalendarEventsToStorage() {
+    localStorage.setItem('calendarEvents', JSON.stringify(calendarEvents));
+}
+
+function renderEventsList() {
+    const eventsList = document.getElementById('eventsList');
+    const upcomingEvents = calendarEvents
+        .filter(e => new Date(e.date) >= new Date())
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(0, 5);
+    
+    if (upcomingEvents.length === 0) {
+        eventsList.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No hay eventos próximos</p>';
+        return;
+    }
+    
+    eventsList.innerHTML = '<h3 style="text-align: center; color: #e91e63; margin-bottom: 20px;">Próximos Eventos</h3>';
+    
+    upcomingEvents.forEach(event => {
+        const eventItem = document.createElement('div');
+        eventItem.className = 'event-item';
+        eventItem.style.borderLeftColor = getEventColor(event.type);
+        
+        const eventDate = new Date(event.date + 'T00:00:00');
+        const dateStr = eventDate.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        
+        eventItem.innerHTML = `
+            <div class="event-item-header">
+                <div>
+                    <div class="event-item-title">${event.title}</div>
+                    <div class="event-item-date">${dateStr}</div>
+                </div>
+                <button class="event-delete-btn" onclick="deleteCalendarEvent(${event.id})">Eliminar</button>
+            </div>
+            ${event.description ? `<div class="event-item-description">${event.description}</div>` : ''}
+        `;
+        
+        eventsList.appendChild(eventItem);
+    });
+}
+
+window.deleteCalendarEvent = function(eventId) {
+    if (!confirm('¿Eliminar este evento?')) return;
+    
+    calendarEvents = calendarEvents.filter(e => e.id !== eventId);
+    saveCalendarEventsToStorage();
+    renderCalendar();
+    showToast('Evento eliminado', 'success');
+};
+
+function showDayEvents(dateStr, events) {
+    if (events.length === 0) {
+        showToast('No hay eventos en este día', 'info');
+        return;
+    }
+    
+    // Aquí podrías mostrar un modal con los eventos del día
+    const eventTitles = events.map(e => `• ${e.title}`).join('\n');
+    showToast(`Eventos:\n${eventTitles}`, 'info');
+}
+
+function checkSpecialDateTheme(month) {
+    const today = new Date();
+    const dateKey = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
+    const themeMessage = document.getElementById('calendarThemeMessage');
+    
+    if (specialDates[dateKey]) {
+        const special = specialDates[dateKey];
+        themeMessage.textContent = special.theme;
+        themeMessage.style.background = special.color;
+        themeMessage.style.color = 'white';
+        themeMessage.classList.remove('hidden');
+    } else if (month === 12) {
+        themeMessage.textContent = '🎄 ¡Feliz temporada navideña!';
+        themeMessage.style.background = '#4caf50';
+        themeMessage.style.color = 'white';
+        themeMessage.classList.remove('hidden');
+    } else if (month === 10) {
+        themeMessage.textContent = '🎃 Mes de Halloween';
+        themeMessage.style.background = '#ff9800';
+        themeMessage.style.color = 'white';
+        themeMessage.classList.remove('hidden');
+    } else {
+        themeMessage.classList.add('hidden');
+    }
+}
+
+// ========== NOTIFICACIONES PUSH ==========
+
+function requestNotificationPermission() {
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                console.log('✅ Permisos de notificación concedidos');
+                showToast('Notificaciones activadas', 'success');
+            }
+        });
+    }
+}
+
+function checkUpcomingReminders() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    const upcomingEvents = calendarEvents.filter(e => e.date === tomorrowStr && e.reminder);
+    
+    upcomingEvents.forEach(event => {
+        // Verificar si ya se envió notificación hoy
+        const notificationKey = `notif_${event.id}_${tomorrowStr}`;
+        if (!localStorage.getItem(notificationKey)) {
+            sendPushNotification(event);
+            localStorage.setItem(notificationKey, 'sent');
+        }
+    });
+}
+
+function sendPushNotification(event) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const notification = new Notification('📅 Recordatorio', {
+            body: `Mañana tienes: ${event.title}`,
+            icon: 'https://cdn-icons-png.flaticon.com/512/833/833472.png',
+            badge: 'https://cdn-icons-png.flaticon.com/512/833/833472.png',
+            tag: `event-${event.id}`,
+            requireInteraction: true,
+            vibrate: [200, 100, 200]
+        });
+        
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+        
+        console.log('🔔 Notificación enviada:', event.title);
+    }
+}
+
+function scheduleReminder(event) {
+    // Calcular tiempo hasta 1 día antes
+    const eventDate = new Date(event.date + 'T00:00:00');
+    const reminderDate = new Date(eventDate);
+    reminderDate.setDate(reminderDate.getDate() - 1);
+    reminderDate.setHours(9, 0, 0, 0); // 9 AM
+    
+    const now = new Date();
+    const timeUntilReminder = reminderDate - now;
+    
+    if (timeUntilReminder > 0 && timeUntilReminder < 86400000 * 2) { // Dentro de 2 días
+        setTimeout(() => {
+            sendPushNotification(event);
+        }, timeUntilReminder);
+    }
+}
+
+// Inicializar calendario cuando se carga el documento
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCalendar);
+} else {
+    initCalendar();
+}
