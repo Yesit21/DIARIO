@@ -141,10 +141,33 @@
     <script src="diary.js?v=5"></script>
     <script src="cursor-hearts.js"></script>
     <script>
+        // Forzar actualización del Service Worker
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
+            window.addEventListener('load', async () => {
+                // Desregistrar service workers viejos
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (let registration of registrations) {
+                    await registration.unregister();
+                    console.log('🧹 Service Worker antiguo desregistrado');
+                }
+                
+                // Limpiar caches antiguos
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    for (let cacheName of cacheNames) {
+                        if (cacheName.includes('diario-cache')) {
+                            await caches.delete(cacheName);
+                            console.log('🧹 Cache antiguo eliminado:', cacheName);
+                        }
+                    }
+                }
+                
+                // Registrar nuevo service worker
                 navigator.serviceWorker.register('./service-worker.js')
-                    .then(reg => console.log('✅ Service Worker registrado'))
+                    .then(reg => {
+                        console.log('✅ Service Worker v3 registrado');
+                        reg.update(); // Forzar actualización inmediata
+                    })
                     .catch(err => console.warn('❌ Error al registrar Service Worker', err));
             });
         }
