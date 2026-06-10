@@ -46,6 +46,89 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     document.body.appendChild(connectionIndicator);
     
+    // PWA: Detectar si se puede instalar
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Mostrar botón de instalación después de 10 segundos
+        setTimeout(() => {
+            showInstallButton();
+        }, 10000);
+    });
+    
+    function showInstallButton() {
+        if (!deferredPrompt) return;
+        
+        const installBtn = document.createElement('button');
+        installBtn.textContent = '📲 Instalar App';
+        installBtn.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #e91e63, #ad1457);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(233, 30, 99, 0.4);
+            animation: pulse 2s infinite;
+        `;
+        
+        installBtn.onclick = async () => {
+            if (!deferredPrompt) return;
+            
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            
+            if (outcome === 'accepted') {
+                console.log('✅ Usuario instaló la app');
+            }
+            
+            deferredPrompt = null;
+            installBtn.remove();
+        };
+        
+        document.body.appendChild(installBtn);
+        
+        // Agregar animación pulse
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes pulse {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.05); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // Detectar cuando la app fue instalada
+    window.addEventListener('appinstalled', () => {
+        console.log('🎉 ¡App instalada exitosamente!');
+        const msg = document.createElement('div');
+        msg.textContent = '✅ ¡App instalada! Ahora puedes usarla desde tu pantalla de inicio';
+        msg.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #4caf50;
+            color: white;
+            padding: 20px 40px;
+            border-radius: 10px;
+            z-index: 10000;
+            font-weight: bold;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        `;
+        document.body.appendChild(msg);
+        setTimeout(() => msg.remove(), 5000);
+    });
+    
     // Función para actualizar indicador de conexión
     function updateConnectionStatus() {
         if (isOnline) {
