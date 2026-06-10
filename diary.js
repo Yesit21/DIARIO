@@ -462,11 +462,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    const showCalendarioBtn = document.getElementById('showCalendario');
+    if (showCalendarioBtn) {
+        showCalendarioBtn.addEventListener('click', () => {
+            console.log('🖱️ Click en botón Calendario');
+            if (currentSection !== 'calendario') {
+                currentSection = 'calendario';
+                console.log('📍 Cambiando a sección: calendario');
+                updateSectionUI();
+                // Renderizar el calendario solo cuando se cambia a esa sección
+                if (typeof renderCalendar === 'function') {
+                    renderCalendar();
+                    checkUpcomingReminders();
+                }
+            }
+        });
+    }
+    
     console.log('✅ Event listeners de secciones configurados');
     console.log('🔍 Verificando botones en DOM:');
     console.log('  - showRecuerdos:', showRecuerdosBtn ? '✅' : '❌');
     console.log('  - showAnhelos:', showAnhelosBtn ? '✅' : '❌');
     console.log('  - showCuaderno:', showCuadernoBtn ? '✅' : '❌');
+    console.log('  - showCalendario:', showCalendarioBtn ? '✅' : '❌');
 
     // Sincronizar cada 30 segundos si hay conexión
     setInterval(() => {
@@ -1554,7 +1572,6 @@ const specialDates = {
 };
 
 function initCalendar() {
-    const showCalendarioBtn = document.getElementById('showCalendario');
     const calendarioContainer = document.getElementById('calendarioContainer');
     const addEventBtn = document.getElementById('addEventBtn');
     const eventModal = document.getElementById('eventModal');
@@ -1574,19 +1591,6 @@ function initCalendar() {
     
     // Cargar eventos desde localStorage
     loadCalendarEvents();
-    
-    // Event listeners
-    if (showCalendarioBtn) {
-        showCalendarioBtn.addEventListener('click', () => {
-            console.log('🖱️ Click en botón Calendario');
-            if (currentSection !== 'calendario') {
-                currentSection = 'calendario';
-                updateSectionUI();
-                renderCalendar();
-                checkUpcomingReminders();
-            }
-        });
-    }
     
     if (addEventBtn) {
         addEventBtn.addEventListener('click', () => {
