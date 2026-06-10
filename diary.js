@@ -1647,10 +1647,42 @@ function renderCalendar() {
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
     
-    // Actualizar título
+    // Colores por mes (gradientes hermosos)
+    const monthColors = [
+        { primary: '#3b82f6', secondary: '#1e40af', accent: '#dbeafe', name: '❄️ Invierno' },      // Enero - Azul helado
+        { primary: '#ec4899', secondary: '#be185d', accent: '#fce7f3', name: '💕 Amor' },          // Febrero - Rosa amor
+        { primary: '#10b981', secondary: '#047857', accent: '#d1fae5', name: '🌸 Primavera' },     // Marzo - Verde primavera
+        { primary: '#a855f7', secondary: '#7e22ce', accent: '#f3e8ff', name: '🌺 Flores' },        // Abril - Morado flores
+        { primary: '#f59e0b', secondary: '#d97706', accent: '#fef3c7', name: '🌼 Alegría' },       // Mayo - Amarillo alegre
+        { primary: '#06b6d4', secondary: '#0891b2', accent: '#cffafe', name: '🌊 Verano' },        // Junio - Cyan verano
+        { primary: '#ef4444', secondary: '#dc2626', accent: '#fee2e2', name: '🔥 Calor' },         // Julio - Rojo calor
+        { primary: '#8b5cf6', secondary: '#6d28d9', accent: '#ede9fe', name: '🌙 Misterio' },      // Agosto - Violeta noche
+        { primary: '#14b8a6', secondary: '#0d9488', accent: '#ccfbf1', name: '🍃 Renovación' },    // Septiembre - Teal renovación
+        { primary: '#f97316', secondary: '#ea580c', accent: '#ffedd5', name: '🎃 Otoño' },         // Octubre - Naranja otoño
+        { primary: '#a78bfa', secondary: '#7c3aed', accent: '#ede9fe', name: '🍂 Nostalgia' },     // Noviembre - Lavanda
+        { primary: '#059669', secondary: '#047857', accent: '#d1fae5', name: '🎄 Navidad' }        // Diciembre - Verde navidad
+    ];
+    
+    const currentMonthColor = monthColors[month];
+    
+    // Aplicar colores al contenedor del calendario
+    const calendarioContainer = document.querySelector('.calendario-container');
+    if (calendarioContainer) {
+        calendarioContainer.style.setProperty('--month-primary', currentMonthColor.primary);
+        calendarioContainer.style.setProperty('--month-secondary', currentMonthColor.secondary);
+        calendarioContainer.style.setProperty('--month-accent', currentMonthColor.accent);
+    }
+    
+    // Actualizar título con emoji del mes
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+    document.getElementById('currentMonthYear').textContent = `${currentMonthColor.name} - ${monthNames[month]} ${year}`;
+    
+    // Actualizar estilos del header con gradiente del mes
+    const calendarioHeader = document.querySelector('.calendario-header');
+    if (calendarioHeader) {
+        calendarioHeader.style.background = `linear-gradient(135deg, ${currentMonthColor.primary}, ${currentMonthColor.secondary})`;
+    }
     
     // Verificar tema especial del mes
     checkSpecialDateTheme(month + 1);
@@ -1667,12 +1699,12 @@ function renderCalendar() {
     const calendarGrid = document.getElementById('calendarGrid');
     calendarGrid.innerHTML = '';
     
-    // Días de la semana
+    // Días de la semana con color del mes
     const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     weekDays.forEach(day => {
         const dayHeader = document.createElement('div');
         dayHeader.className = 'calendar-day-header';
-        dayHeader.style.cssText = 'font-weight: bold; text-align: center; padding: 10px; color: #e91e63;';
+        dayHeader.style.cssText = `font-weight: bold; text-align: center; padding: 10px; color: ${currentMonthColor.primary};`;
         dayHeader.textContent = day;
         calendarGrid.appendChild(dayHeader);
     });
