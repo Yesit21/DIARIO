@@ -182,8 +182,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    // Inicializar la UI de la sección actual
-    updateSectionUI();
+    // NO inicializar UI todavía - esperar a sincronizar con servidor primero
+    // updateSectionUI() se llamará después de la sincronización inicial
     
     // Manejar cambio de secciones
     const showRecuerdosBtn = document.getElementById('showRecuerdos');
@@ -240,25 +240,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     showRecuerdosBtn.addEventListener('click', () => {
+        console.log('🖱️ Click en botón Recuerdos');
         if (currentSection !== 'recuerdos') {
             currentSection = 'recuerdos';
+            console.log('📍 Cambiando a sección: recuerdos');
             updateSectionUI();
         }
     });
 
     showAnhelosBtn.addEventListener('click', () => {
+        console.log('🖱️ Click en botón Mis Deseos');
         if (currentSection !== 'anhelos') {
             currentSection = 'anhelos';
+            console.log('📍 Cambiando a sección: anhelos');
             updateSectionUI();
         }
     });
 
     showCuadernoBtn.addEventListener('click', () => {
+        console.log('🖱️ Click en botón Cuaderno');
         if (currentSection !== 'cuaderno') {
             currentSection = 'cuaderno';
+            console.log('📍 Cambiando a sección: cuaderno');
             updateSectionUI();
         }
     });
+    
+    console.log('✅ Event listeners de secciones configurados');
+    console.log('🔍 Verificando botones en DOM:');
+    console.log('  - showRecuerdos:', showRecuerdosBtn ? '✅' : '❌');
+    console.log('  - showAnhelos:', showAnhelosBtn ? '✅' : '❌');
+    console.log('  - showCuaderno:', showCuadernoBtn ? '✅' : '❌');
 
     // Sincronizar cada 30 segundos si hay conexión
     setInterval(() => {
@@ -459,42 +471,48 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function saveEntry(entry) {
-        // Intentar guardar en servidor primero
+        // SIEMPRE intentar guardar en servidor primero
         saveEntryToServer(entry).then(success => {
-            // Siempre guardar localmente como respaldo
-            try {
+            if (success) {
+                console.log('✅ Guardado en servidor');
+                // También guardar localmente como respaldo
                 let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-                
-                // Verificar si ya existe la entrada
                 const existingIndex = entries.findIndex(e => e.id === entry.id);
                 if (existingIndex >= 0) {
                     entries[existingIndex] = entry;
                 } else {
                     entries.push(entry);
                 }
+                localStorage.setItem('diaryEntries', JSON.stringify(entries));
                 
-                const dataToSave = JSON.stringify(entries);
-                localStorage.setItem('diaryEntries', dataToSave);
-                
-                loadEntries();
-                entryForm.classList.add('hidden');
-                clearForm();
-                newEntryBtn.style.display = 'inline-block';
-                
-            } catch (error) {
-                console.error('Error guardando localmente:', error);
-                
-                let errorMessage = 'Error guardando la entrada. ';
-                if (error.name === 'QuotaExceededError') {
-                    errorMessage += 'El almacenamiento está lleno. Intenta eliminar algunas entradas antiguas o usar fotos más pequeñas.';
+                // Recargar desde el servidor para asegurar sincronización
+                setTimeout(() => {
+                    loadEntriesFromServer().then(() => {
+                        loadEntries();
+                    });
+                }, 500);
+            } else {
+                // Solo si falla el servidor, guardar localmente
+                console.log('⚠️ Guardado solo localmente');
+                let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
+                const existingIndex = entries.findIndex(e => e.id === entry.id);
+                if (existingIndex >= 0) {
+                    entries[existingIndex] = entry;
                 } else {
-                    errorMessage += 'Por favor intenta de nuevo con fotos más pequeñas.';
+                    entries.push(entry);
                 }
-                
-                alert(errorMessage);
+                localStorage.setItem('diaryEntries', JSON.stringify(entries));
+                loadEntries();
             }
+            
+            entryForm.classList.add('hidden');
+            clearForm();
+            newEntryBtn.style.display = 'inline-block';
+            
+        }).catch(error => {
+            console.error('Error guardando:', error);
+            alert('Error al guardar. Por favor intenta de nuevo.');
         }).finally(() => {
-            // Restaurar botón
             saveEntryBtn.textContent = 'Guardar';
             saveEntryBtn.disabled = false;
         });
@@ -507,30 +525,50 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadEntries() {
-        // Cargar desde localStorage primero
+        // SIEMPRE intentar cargar desde servidor primero si está online
+        if (isOnline) {
+            console.log('📡 Cargando entradas desde servidor...');
+            loadEntriesFromServer().then(() => {
+                console.log('✅ Entradas cargadas desde servidor');
+                displayFilteredEntries();
+            }).catch((error) => {
+                // Si falla, cargar desde localStorage
+                console.error('❌ Error cargando desde servidor, usando localStorage:', error);
+                displayFilteredEntries();
+            });
+        } else {
+            // Si está offline, cargar desde localStorage
+            console.log('📴 Offline: Cargando desde localStorage');
+            displayFilteredEntries();
+        }
+    }
+    
+    function displayFilteredEntries() {
+        // Cargar desde localStorage
         let allEntries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
         
         // Filtrar por la sección actual
-        // Si no tiene 'type', asumimos que es 'recuerdos' (para entradas antiguas)
         const entries = allEntries.filter(e => {
             if (currentSection === 'recuerdos') {
                 return !e.type || e.type === 'recuerdos';
             }
-            return e.type === 'anhelos';
+            return e.type === currentSection;
         });
         
         console.log(`📋 Cargando ${entries.length} entradas de tipo ${currentSection}`);
         
         if (entries.length === 0) {
             const emptyMsg = currentSection === 'recuerdos' 
-                ? 'Aún no tienen recuerdos. Haz clic en "Nueva Entrada" para comenzar a escribir juntos.'
-                : 'Aún no tienen anhelos. ¿Qué sueños les gustaría cumplir juntos?';
+                ? 'Aún no tienes recuerdos. Haz clic en "Nueva Entrada" para comenzar a escribir.'
+                : currentSection === 'cuaderno'
+                ? 'Tu cuaderno está vacío. ¡Comienza a escribir!'
+                : 'Aún no tienes anhelos. ¿Qué sueños te gustaría cumplir?';
             
             entriesContainer.innerHTML = `
                 <div style="text-align: center; padding: 40px; color: #ad1457;">
-                    <h3>¡Bienvenidos a nuestros ${currentSection}!</h3>
+                    <h3>¡Bienvenida a ${currentSection}!</h3>
                     <p>${emptyMsg}</p>
-                    <p style="font-size: 0.9em; margin-top: 15px;">💕 Sus ${currentSection} se guardan automáticamente</p>
+                    <p style="font-size: 0.9em; margin-top: 15px;">💕 Todo se guarda automáticamente</p>
                 </div>
             `;
             return;
@@ -769,6 +807,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
+            console.log(`🗑️ Eliminando entrada ${entryId}...`);
+            
+            // Eliminar de localStorage
             let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
             entries = entries.filter(e => e.id !== entryId);
             localStorage.setItem('diaryEntries', JSON.stringify(entries));
@@ -777,13 +818,25 @@ document.addEventListener('DOMContentLoaded', function() {
             if (isOnline) {
                 fetch('/api/entries/' + entryId, {
                     method: 'DELETE'
-                }).catch(err => console.error('Error eliminando del servidor:', err));
+                }).then(response => {
+                    if (response.ok) {
+                        console.log(`✅ Entrada ${entryId} eliminada del servidor`);
+                    }
+                }).catch(err => console.error('❌ Error eliminando del servidor:', err));
             }
             
-            console.log(`🗑️ Entrada ${entryId} eliminada`);
-            loadEntries();
+            console.log(`✅ Entrada ${entryId} eliminada localmente`);
+            
+            // Recargar entradas desde servidor para sincronizar
+            if (isOnline) {
+                loadEntriesFromServer().then(() => {
+                    loadEntries();
+                });
+            } else {
+                loadEntries();
+            }
         } catch (error) {
-            console.error('Error eliminando entrada:', error);
+            console.error('❌ Error eliminando entrada:', error);
             alert('Error al eliminar la entrada. Por favor intenta de nuevo.');
         }
     };
@@ -932,18 +985,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cargar entradas existentes y sincronizar
     console.log('🚀 Iniciando aplicación...');
     
-    // El primer loadEntries ya ocurre dentro de updateSectionUI() arriba
-    
-    // Intentar sincronizar con el servidor inmediatamente si hay internet
+    // Intentar sincronizar con el servidor ANTES de mostrar cualquier cosa
     if (isOnline) {
-        console.log('🌐 Online: Sincronizando datos con el servidor...');
-        syncWithServer().then(() => {
+        console.log('🌐 Online: Sincronizando datos con el servidor PRIMERO...');
+        Promise.all([
+            syncWithServer(),
+            syncLocalEntriesToDatabase()
+        ]).then(() => {
             console.log('✅ Sincronización inicial completada');
-            // Después de bajar del servidor, subir lo local que falte
-            syncLocalEntriesToDatabase();
+            // AHORA SÍ inicializar la UI con datos frescos
+            updateSectionUI();
+        }).catch((error) => {
+            console.error('❌ Error en sincronización inicial:', error);
+            // Si falla, igual mostrar UI con datos locales
+            updateSectionUI();
         });
     } else {
-        console.log('� Offline: Trabajando con datos locales');
+        console.log('📴 Offline: Trabajando con datos locales');
+        // Mostrar UI con datos locales si está offline
+        updateSectionUI();
     }
     
     // Cargar mensaje motivacional al entrar
