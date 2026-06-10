@@ -42,6 +42,13 @@ const initQuery = `
         status TEXT,
         serverTimestamp TEXT
     );
+    
+    CREATE TABLE IF NOT EXISTS cuaderno (
+        id SERIAL PRIMARY KEY,
+        text TEXT,
+        lastSaved TEXT,
+        serverTimestamp TEXT
+    );
 `;
 
 db.query(initQuery)
@@ -164,6 +171,46 @@ app.delete('/api/entries/:id', async (req, res) => {
 // Health check para Railway
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// ========== ENDPOINTS DEL CUADERNO ==========
+// Guardar cuaderno
+app.post('/api/cuaderno', async (req, res) => {
+    try {
+        const { text, lastSaved } = req.body;
+        const serverTimestamp = new Date().toISOString();
+        
+        // Eliminar cualquier entrada anterior (solo guardamos la última versión)
+        await db.query('DELETE FROM cuaderno');
+        
+        // Insertar nueva versión
+        const query = 'INSERT INTO cuaderno (text, lastSaved, serverTimestamp) VALUES ($1, $2, $3) RETURNING *';
+        const result = await db.query(query, [text, lastSaved, serverTimestamp]);
+        
+        console.log('📝 Cuaderno guardado en servidor');
+        res.json({ success: true, cuaderno: result.rows[0] });
+    } catch (error) {
+        console.error('❌ Error guardando cuaderno:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Obtener cuaderno
+app.get('/api/cuaderno', async (req, res) => {
+    try {
+        const query = 'SELECT * FROM cuaderno ORDER BY id DESC LIMIT 1';
+        const result = await db.query(query);
+        
+        if (result.rows.length > 0) {
+            console.log('📖 Cuaderno recuperado del servidor');
+            res.json({ success: true, cuaderno: result.rows[0] });
+        } else {
+            res.json({ success: true, cuaderno: null });
+        }
+    } catch (error) {
+        console.error('❌ Error obteniendo cuaderno:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.listen(PORT, () => {

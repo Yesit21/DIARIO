@@ -1277,24 +1277,61 @@ function initCuaderno() {
     
     cuadernoTextarea.addEventListener('input', updateWordCount);
     
-    // Guardar cuaderno
-    saveCuadernoBtn.addEventListener('click', () => {
+    // Guardar cuaderno en servidor y local
+    const saveCuaderno = async () => {
         const text = cuadernoTextarea.value;
         const timestamp = new Date().toISOString();
         
+        // Guardar localmente primero
         localStorage.setItem('cuadernoText', text);
         localStorage.setItem('cuadernoLastSaved', timestamp);
         
+        // Intentar guardar en servidor
+        if (isOnline) {
+            try {
+                const response = await fetch('/api/cuaderno', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, lastSaved: timestamp })
+                });
+                
+                if (response.ok) {
+                    console.log('📝 Cuaderno sincronizado con servidor');
+                } else {
+                    console.log('⚠️ Error guardando en servidor, guardado localmente');
+                }
+            } catch (error) {
+                console.log('⚠️ Sin conexión, guardado localmente');
+            }
+        }
+        
         showSavedMessage();
         console.log('📝 Cuaderno guardado');
-    });
+    };
+    
+    // Guardar cuaderno
+    saveCuadernoBtn.addEventListener('click', saveCuaderno);
     
     // Limpiar cuaderno
-    clearCuadernoBtn.addEventListener('click', () => {
+    clearCuadernoBtn.addEventListener('click', async () => {
         if (confirm('¿Estás segura de que quieres limpiar el cuaderno? Esta acción no se puede deshacer.')) {
             cuadernoTextarea.value = '';
             updateWordCount();
             localStorage.removeItem('cuadernoText');
+            
+            // También limpiar en servidor
+            if (isOnline) {
+                try {
+                    await fetch('/api/cuaderno', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: '', lastSaved: new Date().toISOString() })
+                    });
+                } catch (error) {
+                    console.log('⚠️ No se pudo limpiar en servidor');
+                }
+            }
+            
             console.log('🗑️ Cuaderno limpiado');
         }
     });
@@ -1302,18 +1339,40 @@ function initCuaderno() {
     // Autoguardado cada 30 segundos
     setInterval(() => {
         if (cuadernoTextarea.value.trim()) {
-            const text = cuadernoTextarea.value;
-            localStorage.setItem('cuadernoText', text);
-            localStorage.setItem('cuadernoLastSaved', new Date().toISOString());
+            saveCuaderno();
             console.log('💾 Autoguardado del cuaderno');
         }
     }, 30000);
 }
 
-function loadCuaderno() {
+async function loadCuaderno() {
     const cuadernoTextarea = document.getElementById('cuadernoTextarea');
-    const savedText = localStorage.getItem('cuadernoText');
     
+    // Intentar cargar desde servidor primero
+    if (isOnline) {
+        try {
+            const response = await fetch('/api/cuaderno');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.cuaderno && data.cuaderno.text) {
+                    cuadernoTextarea.value = data.cuaderno.text;
+                    localStorage.setItem('cuadernoText', data.cuaderno.text);
+                    console.log('📖 Cuaderno cargado desde servidor');
+                    
+                    // Actualizar contador de palabras
+                    const text = data.cuaderno.text.trim();
+                    const words = text ? text.split(/\s+/).length : 0;
+                    document.getElementById('cuadernoWordCount').textContent = `${words} palabra${words !== 1 ? 's' : ''}`;
+                    return;
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ No se pudo cargar desde servidor, usando versión local');
+        }
+    }
+    
+    // Si falla el servidor o no hay conexión, cargar desde localStorage
+    const savedText = localStorage.getItem('cuadernoText');
     if (savedText) {
         cuadernoTextarea.value = savedText;
         // Actualizar contador de palabras
