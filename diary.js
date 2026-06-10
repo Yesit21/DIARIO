@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
         font-size: 0.85em;
         font-weight: 600;
         z-index: 1000;
-        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         border: 1px solid rgba(255, 255, 255, 0.3);
@@ -49,8 +49,13 @@ document.addEventListener('DOMContentLoaded', function() {
         align-items: center;
         gap: 8px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        opacity: 0;
+        pointer-events: none;
     `;
     document.body.appendChild(connectionIndicator);
+    
+    // Variable para timeout de desvanecimiento
+    let connectionStatusTimeout;
     
     // PWA: Detectar si se puede instalar
     let deferredPrompt;
@@ -188,6 +193,15 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Función para actualizar indicador de conexión (diseño moderno)
     function updateConnectionStatus() {
+        // Limpiar timeout anterior si existe
+        if (connectionStatusTimeout) {
+            clearTimeout(connectionStatusTimeout);
+        }
+        
+        // Mostrar el indicador
+        connectionIndicator.style.opacity = '1';
+        connectionIndicator.style.pointerEvents = 'auto';
+        
         if (isOnline) {
             connectionIndicator.innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -208,8 +222,15 @@ document.addEventListener('DOMContentLoaded', function() {
             connectionIndicator.style.background = 'linear-gradient(135deg, rgba(255, 152, 0, 0.9), rgba(245, 124, 0, 0.9))';
             connectionIndicator.style.color = 'white';
         }
+        
+        // Desvanecer después de 3 segundos
+        connectionStatusTimeout = setTimeout(() => {
+            connectionIndicator.style.opacity = '0';
+            connectionIndicator.style.pointerEvents = 'none';
+        }, 3000);
     }
     
+    // Mostrar indicador al cargar la página (solo una vez)
     updateConnectionStatus();
 
     const newEntryBtn = document.getElementById('newEntryBtn');
