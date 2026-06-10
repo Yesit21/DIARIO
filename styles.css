@@ -1569,6 +1569,16 @@ header h1 {
     padding: 20px;
     border-radius: 20px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.calendar-day-header {
+    font-weight: bold;
+    text-align: center;
+    padding: 10px;
+    color: #e91e63;
+    font-size: 0.9em;
 }
 
 .calendar-day {
@@ -1583,6 +1593,8 @@ header h1 {
     transition: all 0.3s ease;
     position: relative;
     background: #f8f9fa;
+    box-sizing: border-box;
+    min-height: 60px;
 }
 
 .calendar-day:hover {
@@ -1805,13 +1817,111 @@ header h1 {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .calendar-grid {
-        gap: 5px;
+    .calendario-container {
         padding: 10px;
     }
     
-    .calendar-day {
+    .calendario-header {
+        padding: 15px 10px;
+        margin-bottom: 15px;
+    }
+    
+    .calendario-header h2 {
+        font-size: 1.2em;
+    }
+    
+    .calendar-nav-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.2em;
+    }
+    
+    .calendar-grid {
+        gap: 3px;
         padding: 5px;
+        border-radius: 10px;
+    }
+    
+    .calendar-day {
+        padding: 3px;
+        font-size: 0.75em;
+        border-radius: 8px;
+        min-height: 45px;
+    }
+    
+    .calendar-day-number {
+        font-size: 0.9em;
+    }
+    
+    .calendar-event-dots {
+        gap: 2px;
+        margin-top: 2px;
+    }
+    
+    .event-dot {
+        width: 4px;
+        height: 4px;
+    }
+    
+    .calendar-day-header {
+        font-size: 0.7em !important;
+        padding: 5px !important;
+    }
+    
+    .calendar-legend {
+        gap: 10px;
         font-size: 0.85em;
+        padding: 0 10px;
+    }
+    
+    .btn-add-event {
+        padding: 12px 30px;
+        font-size: 1em;
+    }
+    
+    .event-modal-content {
+        padding: 25px;
+        width: 95%;
+    }
+    
+    .event-item {
+        padding: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .calendario-header h2 {
+        font-size: 1em;
+    }
+    
+    .calendar-nav-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 1em;
+    }
+    
+    .calendar-grid {
+        gap: 2px;
+        padding: 3px;
+    }
+    
+    .calendar-day {
+        padding: 2px;
+        min-height: 40px;
+        font-size: 0.7em;
+    }
+    
+    .calendar-day-number {
+        font-size: 0.85em;
+    }
+    
+    .calendar-day-header {
+        font-size: 0.65em !important;
+        padding: 3px !important;
+    }
+    
+    .event-dot {
+        width: 3px;
+        height: 3px;
     }
 }
