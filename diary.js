@@ -49,20 +49,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // PWA: Detectar si se puede instalar
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
+        console.log('🎯 Evento beforeinstallprompt detectado - La app se puede instalar');
         e.preventDefault();
         deferredPrompt = e;
         
         // Mostrar botón de instalación después de 10 segundos
         setTimeout(() => {
+            console.log('⏰ 10 segundos pasaron, mostrando botón de instalación...');
             showInstallButton();
         }, 10000);
     });
     
     function showInstallButton() {
-        if (!deferredPrompt) return;
+        if (!deferredPrompt) {
+            console.log('❌ No se puede mostrar botón - deferredPrompt es null');
+            return;
+        }
+        
+        console.log('✅ Creando botón de instalación...');
         
         const installBtn = document.createElement('button');
         installBtn.textContent = '📲 Instalar App';
+        installBtn.id = 'pwaInstallBtn';
         installBtn.style.cssText = `
             position: fixed;
             bottom: 20px;
@@ -75,19 +83,24 @@ document.addEventListener('DOMContentLoaded', function() {
             font-size: 1em;
             font-weight: bold;
             cursor: pointer;
-            z-index: 1000;
+            z-index: 99999;
             box-shadow: 0 4px 20px rgba(233, 30, 99, 0.4);
             animation: pulse 2s infinite;
         `;
         
         installBtn.onclick = async () => {
+            console.log('🖱️ Usuario hizo clic en instalar');
             if (!deferredPrompt) return;
             
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             
+            console.log('📊 Resultado de instalación:', outcome);
+            
             if (outcome === 'accepted') {
                 console.log('✅ Usuario instaló la app');
+            } else {
+                console.log('❌ Usuario rechazó la instalación');
             }
             
             deferredPrompt = null;
@@ -95,16 +108,20 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         
         document.body.appendChild(installBtn);
+        console.log('✅ Botón de instalación agregado al DOM');
         
         // Agregar animación pulse
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes pulse {
-                0%, 100% { transform: scale(1); }
-                50% { transform: scale(1.05); }
-            }
-        `;
-        document.head.appendChild(style);
+        if (!document.getElementById('pwa-pulse-animation')) {
+            const style = document.createElement('style');
+            style.id = 'pwa-pulse-animation';
+            style.textContent = `
+                @keyframes pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }
     
     // Detectar cuando la app fue instalada
