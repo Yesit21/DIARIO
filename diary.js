@@ -29,20 +29,26 @@ document.addEventListener('DOMContentLoaded', function() {
         themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
     });
     
-    // Crear indicador de estado de conexión
+    // Crear indicador de estado de conexión (diseño moderno)
     const connectionIndicator = document.createElement('div');
     connectionIndicator.id = 'connectionStatus';
     connectionIndicator.style.cssText = `
         position: fixed;
-        top: 10px;
-        right: 80px;
-        padding: 8px 16px;
-        border-radius: 20px;
-        font-size: 0.9em;
-        font-weight: bold;
+        top: 70px;
+        right: 20px;
+        padding: 10px 20px;
+        border-radius: 50px;
+        font-size: 0.85em;
+        font-weight: 600;
         z-index: 1000;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     `;
     document.body.appendChild(connectionIndicator);
     
@@ -69,28 +75,55 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('✅ Creando botón de instalación...');
         
         const installBtn = document.createElement('button');
-        installBtn.textContent = '📲 Instalar App';
+        installBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Instalar App</span>
+        `;
         installBtn.id = 'pwaInstallBtn';
         installBtn.style.cssText = `
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #e91e63, #ad1457);
+            bottom: 30px;
+            right: 30px;
+            padding: 14px 28px;
+            background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
             color: white;
             border: none;
-            border-radius: 25px;
-            font-size: 1em;
-            font-weight: bold;
+            border-radius: 50px;
+            font-size: 0.95em;
+            font-weight: 600;
             cursor: pointer;
             z-index: 99999;
-            box-shadow: 0 4px 20px rgba(233, 30, 99, 0.4);
-            animation: pulse 2s infinite;
+            box-shadow: 0 10px 40px rgba(233, 30, 99, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            animation: slideInUp 0.5s ease, pulse 3s infinite;
         `;
+        
+        installBtn.onmouseover = () => {
+            installBtn.style.transform = 'translateY(-3px) scale(1.05)';
+            installBtn.style.boxShadow = '0 15px 50px rgba(233, 30, 99, 0.5)';
+        };
+        
+        installBtn.onmouseout = () => {
+            installBtn.style.transform = 'translateY(0) scale(1)';
+            installBtn.style.boxShadow = '0 10px 40px rgba(233, 30, 99, 0.4)';
+        };
         
         installBtn.onclick = async () => {
             console.log('🖱️ Usuario hizo clic en instalar');
             if (!deferredPrompt) return;
+            
+            installBtn.style.opacity = '0.5';
+            installBtn.style.pointerEvents = 'none';
             
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
@@ -99,62 +132,80 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (outcome === 'accepted') {
                 console.log('✅ Usuario instaló la app');
+                installBtn.style.animation = 'slideOutDown 0.3s ease';
+                setTimeout(() => installBtn.remove(), 300);
             } else {
                 console.log('❌ Usuario rechazó la instalación');
+                installBtn.style.opacity = '1';
+                installBtn.style.pointerEvents = 'auto';
             }
             
             deferredPrompt = null;
-            installBtn.remove();
         };
         
         document.body.appendChild(installBtn);
         console.log('✅ Botón de instalación agregado al DOM');
         
-        // Agregar animación pulse
-        if (!document.getElementById('pwa-pulse-animation')) {
+        // Agregar animaciones
+        if (!document.getElementById('pwa-animations')) {
             const style = document.createElement('style');
-            style.id = 'pwa-pulse-animation';
+            style.id = 'pwa-animations';
             style.textContent = `
                 @keyframes pulse {
                     0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.05); }
+                    50% { transform: scale(1.03); }
+                }
+                @keyframes slideInUp {
+                    from {
+                        opacity: 0;
+                        transform: translateY(30px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                @keyframes slideOutDown {
+                    from {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: translateY(30px);
+                    }
                 }
             `;
             document.head.appendChild(style);
         }
     }
     
-    // Detectar cuando la app fue instalada
+    // Detectar cuando la app fue instalada (mensaje moderno)
     window.addEventListener('appinstalled', () => {
         console.log('🎉 ¡App instalada exitosamente!');
-        const msg = document.createElement('div');
-        msg.textContent = '✅ ¡App instalada! Ahora puedes usarla desde tu pantalla de inicio';
-        msg.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #4caf50;
-            color: white;
-            padding: 20px 40px;
-            border-radius: 10px;
-            z-index: 10000;
-            font-weight: bold;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        `;
-        document.body.appendChild(msg);
-        setTimeout(() => msg.remove(), 5000);
+        showToast('¡App instalada exitosamente!', 'success');
     });
     
-    // Función para actualizar indicador de conexión
+    // Función para actualizar indicador de conexión (diseño moderno)
     function updateConnectionStatus() {
         if (isOnline) {
-            connectionIndicator.textContent = '🌐 Conectado';
-            connectionIndicator.style.background = '#4caf50';
+            connectionIndicator.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M12 6v6l4 2"></path>
+                </svg>
+                <span>Conectado</span>
+            `;
+            connectionIndicator.style.background = 'linear-gradient(135deg, rgba(76, 175, 80, 0.9), rgba(56, 142, 60, 0.9))';
             connectionIndicator.style.color = 'white';
         } else {
-            connectionIndicator.textContent = '📴 Modo Offline';
-            connectionIndicator.style.background = '#ff9800';
+            connectionIndicator.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                </svg>
+                <span>Sin conexión</span>
+            `;
+            connectionIndicator.style.background = 'linear-gradient(135deg, rgba(255, 152, 0, 0.9), rgba(245, 124, 0, 0.9))';
             connectionIndicator.style.color = 'white';
         }
     }
@@ -1221,16 +1272,7 @@ function loadCuaderno() {
 }
 
 function showSavedMessage() {
-    const message = document.createElement('div');
-    message.className = 'cuaderno-saved-message';
-    message.textContent = '✅ Guardado exitosamente';
-    document.body.appendChild(message);
-    
-    setTimeout(() => {
-        if (message.parentNode) {
-            message.parentNode.removeChild(message);
-        }
-    }, 3000);
+    showToast('Cuaderno guardado exitosamente', 'success');
 }
 
 // Función para cargar mensaje motivacional
@@ -1250,7 +1292,7 @@ async function loadMotivationalMessage() {
     }
 }
 
-// Mostrar mensaje motivacional
+// Mostrar mensaje motivacional (diseño moderno glassmorphism)
 function showMotivationalMessage(message) {
     const modal = document.createElement('div');
     modal.style.cssText = `
@@ -1259,43 +1301,77 @@ function showMotivationalMessage(message) {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.7);
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
         display: flex;
         justify-content: center;
         align-items: center;
         z-index: 10000;
-        animation: fadeIn 0.3s ease;
+        animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     `;
     
     const messageBox = document.createElement('div');
     messageBox.style.cssText = `
-        background: linear-gradient(135deg, #ffeef8 0%, #ffe4f0 100%);
-        padding: 40px;
-        border-radius: 20px;
-        max-width: 500px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        padding: 50px 40px;
+        border-radius: 30px;
+        max-width: 450px;
         text-align: center;
-        box-shadow: 0 20px 60px rgba(233, 30, 99, 0.4);
-        animation: scaleIn 0.5s ease;
-        border: 3px solid #f8bbd9;
+        box-shadow: 0 20px 80px rgba(233, 30, 99, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.5);
+        animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        position: relative;
+        overflow: hidden;
     `;
     
     messageBox.innerHTML = `
-        <div style="font-size: 3em; margin-bottom: 20px;">💕</div>
-        <h2 style="color: #d81b60; margin-bottom: 20px; font-family: Georgia, serif;">Mensaje del Corazón</h2>
-        <p style="color: #ad1457; font-size: 1.2em; line-height: 1.6; font-style: italic;">${message}</p>
+        <div style="
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 150px;
+            height: 150px;
+            background: linear-gradient(135deg, #ffc1e3 0%, #e91e63 100%);
+            border-radius: 50%;
+            opacity: 0.1;
+        "></div>
+        <div style="
+            font-size: 4em;
+            margin-bottom: 20px;
+            animation: heartBeat 1.5s infinite;
+            filter: drop-shadow(0 4px 8px rgba(233, 30, 99, 0.3));
+        ">💕</div>
+        <h2 style="
+            color: #d81b60;
+            margin-bottom: 25px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 1.5em;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        ">Mensaje del Corazón</h2>
+        <p style="
+            color: #555;
+            font-size: 1.15em;
+            line-height: 1.7;
+            font-weight: 500;
+            margin-bottom: 35px;
+        ">${message}</p>
         <button id="closeMotivational" style="
-            margin-top: 30px;
-            background: #e91e63;
+            margin-top: 10px;
+            background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%);
             color: white;
             border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
+            padding: 14px 40px;
+            border-radius: 50px;
             cursor: pointer;
             font-size: 1em;
-            font-weight: bold;
-            box-shadow: 0 4px 15px rgba(233, 30, 99, 0.3);
-            transition: all 0.3s ease;
-        " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            font-weight: 600;
+            box-shadow: 0 8px 25px rgba(233, 30, 99, 0.35);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        ">
             ¡Gracias! 💖
         </button>
     `;
@@ -1303,8 +1379,19 @@ function showMotivationalMessage(message) {
     modal.appendChild(messageBox);
     document.body.appendChild(modal);
     
-    document.getElementById('closeMotivational').addEventListener('click', () => {
+    const closeBtn = document.getElementById('closeMotivational');
+    closeBtn.onmouseover = () => {
+        closeBtn.style.transform = 'translateY(-2px) scale(1.05)';
+        closeBtn.style.boxShadow = '0 12px 35px rgba(233, 30, 99, 0.45)';
+    };
+    closeBtn.onmouseout = () => {
+        closeBtn.style.transform = 'translateY(0) scale(1)';
+        closeBtn.style.boxShadow = '0 8px 25px rgba(233, 30, 99, 0.35)';
+    };
+    
+    closeBtn.addEventListener('click', () => {
         modal.style.animation = 'fadeOut 0.3s ease';
+        messageBox.style.animation = 'scaleOut 0.3s ease';
         setTimeout(() => {
             document.body.removeChild(modal);
         }, 300);
@@ -1314,6 +1401,7 @@ function showMotivationalMessage(message) {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.style.animation = 'fadeOut 0.3s ease';
+            messageBox.style.animation = 'scaleOut 0.3s ease';
             setTimeout(() => {
                 document.body.removeChild(modal);
             }, 300);
@@ -1321,7 +1409,7 @@ function showMotivationalMessage(message) {
     });
 }
 
-// Agregar animaciones CSS
+// Agregar animaciones CSS modernas
 const motivationalStyle = document.createElement('style');
 motivationalStyle.textContent = `
     @keyframes fadeIn {
@@ -1333,8 +1421,105 @@ motivationalStyle.textContent = `
         to { opacity: 0; }
     }
     @keyframes scaleIn {
-        from { transform: scale(0.8); opacity: 0; }
-        to { transform: scale(1); opacity: 1; }
+        from {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    @keyframes scaleOut {
+        from {
+            transform: scale(1);
+            opacity: 1;
+        }
+        to {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+    }
+    @keyframes heartBeat {
+        0%, 100% { transform: scale(1); }
+        25% { transform: scale(1.1); }
+        50% { transform: scale(1); }
     }
 `;
 document.head.appendChild(motivationalStyle);
+
+// Sistema de Toast Notifications moderno
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    const icons = {
+        success: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+        error: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        info: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
+    };
+    
+    const colors = {
+        success: 'linear-gradient(135deg, #4caf50, #388e3c)',
+        error: 'linear-gradient(135deg, #f44336, #c62828)',
+        info: 'linear-gradient(135deg, #2196f3, #1565c0)'
+    };
+    
+    toast.style.cssText = `
+        position: fixed;
+        top: 90px;
+        right: 20px;
+        background: ${colors[type]};
+        color: white;
+        padding: 16px 24px;
+        border-radius: 50px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        z-index: 10001;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 600;
+        font-size: 0.95em;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        animation: toastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        max-width: 400px;
+    `;
+    
+    toast.innerHTML = `
+        <div style="flex-shrink: 0;">${icons[type]}</div>
+        <span>${message}</span>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'toastSlideOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+// Agregar animaciones de toast
+const toastStyle = document.createElement('style');
+toastStyle.textContent = `
+    @keyframes toastSlideIn {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    @keyframes toastSlideOut {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+    }
+`;
+document.head.appendChild(toastStyle);
