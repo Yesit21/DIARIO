@@ -49,6 +49,16 @@ const initQuery = `
         lastSaved TEXT,
         serverTimestamp TEXT
     );
+    
+    CREATE TABLE IF NOT EXISTS calendar_events (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        description TEXT,
+        date TEXT,
+        type TEXT,
+        reminder BOOLEAN,
+        serverTimestamp TEXT
+    );
 `;
 
 db.query(initQuery)
@@ -209,6 +219,111 @@ app.get('/api/cuaderno', async (req, res) => {
         }
     } catch (error) {
         console.error('❌ Error obteniendo cuaderno:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ========== ENDPOINTS DEL CALENDARIO ==========
+// Obtener todos los eventos
+app.get('/api/calendar-events', async (req, res) => {
+    try {
+        const query = 'SELECT * FROM calendar_events ORDER BY date ASC';
+        const result = await db.query(query);
+        console.log(`📅 ${result.rows.length} eventos del calendario recuperados`);
+        res.json({ success: true, events: result.rows });
+    } catch (error) {
+        console.error('❌ Error obteniendo eventos:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Guardar un evento
+app.post('/api/calendar-events', async (req, res) => {
+    try {
+        const { event } = req.body;
+        const serverTimestamp = new Date().toISOString();
+        
+        const query = `
+            INSERT INTO calendar_events (id, title, description, date, type, reminder, serverTimestamp)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (id) DO UPDATE SET
+                title = $2,
+                description = $3,
+                date = $4,
+                type = $5,
+                reminder = $6,
+                serverTimestamp = $7
+            RETURNING *
+        `;
+        
+        const result = await db.query(query, [
+            event.id,
+            event.title,
+            event.description || '',
+            event.date,
+            event.type,
+            event.reminder || false,
+            serverTimestamp
+        ]);
+        
+        console.log(`📅 Evento guardado: ${event.title}`);
+        res.json({ success: true, event: result.rows[0] });
+    } catch (error) {
+        console.error('❌ Error guardando evento:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Eliminar un evento
+app.delete('/api/calendar-events/:id', async (req, res) => {
+    try {
+        const eventId = req.params.id;
+        const query = 'DELETE FROM calendar_events WHERE id = $1';
+        await db.query(query, [eventId]);
+        console.log(`🗑️ Evento ${eventId} eliminado`);
+        res.json({ success: true, message: 'Evento eliminado' });
+    } catch (error) {
+        console.error('❌ Error eliminando evento:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Sincronizar eventos locales con el servidor
+app.post('/api/sync-calendar-events', async (req, res) => {
+    try {
+        const { events } = req.body;
+        let syncedCount = 0;
+        const serverTimestamp = new Date().toISOString();
+        
+        for (const event of events) {
+            const query = `
+                INSERT INTO calendar_events (id, title, description, date, type, reminder, serverTimestamp)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (id) DO UPDATE SET
+                    title = $2,
+                    description = $3,
+                    date = $4,
+                    type = $5,
+                    reminder = $6,
+                    serverTimestamp = $7
+            `;
+            
+            await db.query(query, [
+                event.id,
+                event.title,
+                event.description || '',
+                event.date,
+                event.type,
+                event.reminder || false,
+                serverTimestamp
+            ]);
+            syncedCount++;
+        }
+        
+        console.log(`📅 ${syncedCount} eventos sincronizados`);
+        res.json({ success: true, syncedCount });
+    } catch (error) {
+        console.error('❌ Error sincronizando eventos:', error);
         res.status(500).json({ error: error.message });
     }
 });

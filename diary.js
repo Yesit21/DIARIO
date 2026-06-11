@@ -1669,8 +1669,11 @@ function initCalendar() {
     // Solicitar permisos de notificaciones
     requestNotificationPermission();
     
-    // Cargar eventos desde localStorage
-    loadCalendarEvents();
+    // Cargar eventos desde el servidor
+    loadCalendarEventsFromServer().then(() => {
+        // Sincronizar eventos locales al servidor si hay
+        syncCalendarEventsToServer();
+    });
     
     if (addEventBtn) {
         addEventBtn.addEventListener('click', () => {
@@ -1847,7 +1850,7 @@ function getEventColor(type) {
     return colors[type] || '#4caf50';
 }
 
-function saveCalendarEvent() {
+async function saveCalendarEvent() {
     const title = document.getElementById('eventTitle').value.trim();
     const description = document.getElementById('eventDescription').value.trim();
     const date = document.getElementById('eventDate').value;
@@ -1860,7 +1863,7 @@ function saveCalendarEvent() {
     }
     
     const event = {
-        id: Date.now(),
+        id: String(Date.now()),
         title,
         description,
         date,
@@ -1871,6 +1874,9 @@ function saveCalendarEvent() {
     
     calendarEvents.push(event);
     saveCalendarEventsToStorage();
+    
+    // Guardar en servidor
+    await saveCalendarEventToServer(event);
     
     // Programar recordatorio si está activado
     if (reminder) {
@@ -1898,8 +1904,93 @@ function loadCalendarEvents() {
     }
 }
 
+async function loadCalendarEventsFromServer() {
+    if (!isOnline) {
+        loadCalendarEvents();
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/calendar-events');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.events) {
+                calendarEvents = data.events;
+                localStorage.setItem('calendarEvents', JSON.stringify(calendarEvents));
+                console.log(`📅 ${data.events.length} eventos cargados del servidor`);
+                return;
+            }
+        }
+    } catch (error) {
+        console.log('⚠️ No se pudo cargar eventos del servidor, usando versión local');
+    }
+    
+    // Si falla, cargar desde localStorage
+    loadCalendarEvents();
+}
+
 function saveCalendarEventsToStorage() {
     localStorage.setItem('calendarEvents', JSON.stringify(calendarEvents));
+}
+
+async function saveCalendarEventToServer(event) {
+    if (!isOnline) return false;
+    
+    try {
+        const response = await fetch('/api/calendar-events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event })
+        });
+        
+        if (response.ok) {
+            console.log('📅 Evento guardado en servidor');
+            return true;
+        }
+    } catch (error) {
+        console.log('⚠️ Error guardando evento en servidor');
+    }
+    return false;
+}
+
+async function deleteCalendarEventFromServer(eventId) {
+    if (!isOnline) return false;
+    
+    try {
+        const response = await fetch(`/api/calendar-events/${eventId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            console.log('🗑️ Evento eliminado del servidor');
+            return true;
+        }
+    } catch (error) {
+        console.log('⚠️ Error eliminando evento del servidor');
+    }
+    return false;
+}
+
+async function syncCalendarEventsToServer() {
+    if (!isOnline) return;
+    
+    const localEvents = JSON.parse(localStorage.getItem('calendarEvents')) || [];
+    if (localEvents.length === 0) return;
+    
+    try {
+        const response = await fetch('/api/sync-calendar-events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ events: localEvents })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log(`📅 ${data.syncedCount} eventos sincronizados con el servidor`);
+        }
+    } catch (error) {
+        console.log('⚠️ Error sincronizando eventos');
+    }
 }
 
 function renderEventsList() {
@@ -1939,11 +2030,15 @@ function renderEventsList() {
     });
 }
 
-window.deleteCalendarEvent = function(eventId) {
+window.deleteCalendarEvent = async function(eventId) {
     if (!confirm('¿Eliminar este evento?')) return;
     
     calendarEvents = calendarEvents.filter(e => e.id !== eventId);
     saveCalendarEventsToStorage();
+    
+    // Eliminar del servidor
+    await deleteCalendarEventFromServer(eventId);
+    
     renderCalendar();
     showToast('Evento eliminado', 'success');
 };
