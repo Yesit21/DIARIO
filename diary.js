@@ -930,7 +930,7 @@ document.addEventListener('DOMContentLoaded', function() {
             anhelosInfoHtml = `
                 <div class="anhelo-details">
                     ${priceHtml}
-                    <div class="entry-status ${statusClass}" onclick="toggleAnheloStatus(${entry.id})">
+                    <div class="entry-status ${statusClass}" onclick="toggleAnheloStatus('${entry.id}')">
                         ${statusLabel}
                     </div>
                 </div>
@@ -1078,20 +1078,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.toggleAnheloStatus = function(entryId) {
         try {
+            console.log('🖱️ Click en cambiar estado, ID:', entryId);
             let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
-            const entry = entries.find(e => e.id === entryId);
+            const entry = entries.find(e => String(e.id) === String(entryId));
             
             if (entry) {
+                // Cambiar el estado
                 entry.status = entry.status === 'adquirido' ? 'sin_adquirir' : 'adquirido';
                 localStorage.setItem('diaryEntries', JSON.stringify(entries));
                 
+                console.log(`✅ Estado de anhelo ${entryId} cambiado a: ${entry.status}`);
+                
                 // Actualizar en el servidor
                 if (isOnline) {
-                    saveEntryToServer(entry).catch(err => console.error('Error actualizando en servidor:', err));
+                    saveEntryToServer(entry).then(() => {
+                        console.log('✅ Estado actualizado en servidor');
+                    }).catch(err => console.error('Error actualizando en servidor:', err));
                 }
                 
-                console.log(`✅ Estado de anhelo ${entryId} cambiado a: ${entry.status}`);
+                // Recargar las entradas para ver el cambio
                 loadEntries();
+            } else {
+                console.error('❌ No se encontró la entrada con ID:', entryId);
             }
         } catch (error) {
             console.error('Error cambiando estado:', error);
