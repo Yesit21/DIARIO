@@ -128,8 +128,9 @@
                     <option value="examen">📚 Examen</option>
                     <option value="cumpleaños">🎂 Cumpleaños</option>
                     <option value="cita">📅 Cita</option>
-                    <option value="otro">⭐ Otro</option>
+                    <option value="otro">⭐ Otro (personalizar)</option>
                 </select>
+                <input type="text" id="eventCustomType" class="hidden" placeholder="Escribe el tipo de evento...">
                 <label>
                     <input type="checkbox" id="eventReminder" checked>
                     Recordarme 1 día antes
@@ -142,7 +143,7 @@
         </div>
     </main>
 
-    <script src="diary.js?v=13"></script>
+    <script src="diary.js?v=14"></script>
     <script src="cursor-hearts.js"></script>
     <script>
         // Forzar actualización del Service Worker

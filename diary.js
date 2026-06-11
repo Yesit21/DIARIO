@@ -1667,11 +1667,26 @@ function initCalendar() {
     const cancelEventBtn = document.getElementById('cancelEvent');
     const prevMonthBtn = document.getElementById('prevMonth');
     const nextMonthBtn = document.getElementById('nextMonth');
+    const eventTypeSelect = document.getElementById('eventType');
+    const eventCustomType = document.getElementById('eventCustomType');
     
     // IMPORTANTE: Asegurar que el modal esté oculto al iniciar
     if (eventModal) {
         eventModal.classList.add('hidden');
         console.log('✅ Modal de eventos ocultado al inicializar');
+    }
+    
+    // Mostrar/ocultar campo personalizado según el tipo seleccionado
+    if (eventTypeSelect && eventCustomType) {
+        eventTypeSelect.addEventListener('change', () => {
+            if (eventTypeSelect.value === 'otro') {
+                eventCustomType.classList.remove('hidden');
+                eventCustomType.focus();
+            } else {
+                eventCustomType.classList.add('hidden');
+                eventCustomType.value = '';
+            }
+        });
     }
     
     // Solicitar permisos de notificaciones
@@ -1862,8 +1877,14 @@ async function saveCalendarEvent() {
     const title = document.getElementById('eventTitle').value.trim();
     const description = document.getElementById('eventDescription').value.trim();
     const date = document.getElementById('eventDate').value;
-    const type = document.getElementById('eventType').value;
+    let type = document.getElementById('eventType').value;
+    const customType = document.getElementById('eventCustomType').value.trim();
     const reminder = document.getElementById('eventReminder').checked;
+    
+    // Si seleccionó "otro" y escribió un tipo personalizado, usarlo
+    if (type === 'otro' && customType) {
+        type = customType;
+    }
     
     if (!title || !date) {
         showToast('Por favor completa título y fecha', 'error');
@@ -1902,6 +1923,8 @@ function clearEventForm() {
     document.getElementById('eventDescription').value = '';
     document.getElementById('eventDate').valueAsDate = new Date();
     document.getElementById('eventType').value = 'examen';
+    document.getElementById('eventCustomType').value = '';
+    document.getElementById('eventCustomType').classList.add('hidden');
     document.getElementById('eventReminder').checked = true;
 }
 
